@@ -1,0 +1,6 @@
+{
+  "name": "AshRides26 Analytics Dashboard",
+  "description": "Dark-themed Advanced DBMS analytics dashboard for motovlogging channel AshRides26 tracking video performance metrics, audience retention, monthly growth trends, multi-channel comparisons, and real-time trending alerts.",
+  "requestFramePermissions": ["notifications"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
