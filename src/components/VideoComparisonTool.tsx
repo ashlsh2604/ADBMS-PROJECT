@@ -4,7 +4,8 @@ import { VIDEOS } from '../data/mockDbmsData';
 import { useAuthAndSync } from '../context/AuthAndSyncContext';
 import { 
   Layers, Plus, Trash2, Trophy, BarChart3, TrendingUp, 
-  Code, Bookmark, Check, ArrowRight, Sparkles, Bike, Zap, Video as VideoIcon 
+  Code, Bookmark, Check, ArrowRight, Sparkles, Bike, Zap, Video as VideoIcon,
+  Youtube, ExternalLink
 } from 'lucide-react';
 import { 
   ResponsiveContainer, LineChart, Line, XAxis, YAxis, 
@@ -138,6 +139,12 @@ ORDER BY v.views DESC;`;
 
           {/* Preset Buttons & Save */}
           <div className="flex items-center gap-2 flex-wrap">
+            <button
+              onClick={() => handlePresetSelect(['ash_vid_adv_01', 'ash_vid_adv_02'])}
+              className="px-2.5 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-800 text-xs font-mono text-cyan-300 transition"
+            >
+              🏔️ NC Adventure Series
+            </button>
             <button
               onClick={() => handlePresetSelect(['ash_vid_01', 'ash_vid_02'])}
               className="px-2.5 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-800 text-xs font-mono text-slate-300 transition"
@@ -307,10 +314,17 @@ ORDER BY v.views DESC;`;
               </div>
 
               {/* Bottom Action */}
-              <div className="mt-4 pt-3 border-t border-slate-800 flex justify-between items-center">
-                <span className="text-[11px] font-mono text-slate-400">
-                  RPM: ${video.cpm_usd.toFixed(2)}
-                </span>
+              <div className="mt-4 pt-3 border-t border-slate-800 flex justify-between items-center gap-2">
+                <a
+                  href={video.youtube_url || 'https://youtube.com/@ashrides26?si=fFlM8mxI6AMdyinO'}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-2 py-1 rounded-lg bg-red-600/20 hover:bg-red-600/30 text-red-300 hover:text-white border border-red-500/30 text-[11px] font-semibold transition flex items-center gap-1"
+                >
+                  <Youtube className="w-3 h-3 text-red-500" />
+                  <span>YouTube</span>
+                  <ExternalLink className="w-2.5 h-2.5 opacity-70" />
+                </a>
                 {onSelectVideoDetail && (
                   <button
                     onClick={() => onSelectVideoDetail(video.video_id)}

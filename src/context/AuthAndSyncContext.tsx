@@ -1,10 +1,13 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { UserAccount, DeviceSession, SavedQuery } from '../types/database';
 import { INITIAL_USER_ACCOUNT } from '../data/mockDbmsData';
+import { loginUserApi, signupUserApi, syncDeviceApi } from '../services/api';
 
 interface AuthAndSyncContextType {
   user: UserAccount | null;
   isAuthenticated: boolean;
+  isGuest: boolean;
+  setGuestMode: (val: boolean) => void;
   isSyncing: boolean;
   lastSyncTime: Date;
   syncSuccessMessage: string | null;
@@ -25,6 +28,7 @@ interface AuthAndSyncContextType {
 }
 
 const STORAGE_KEY = 'ashrides26_dbms_user_session';
+const GUEST_KEY = 'ashrides26_guest_mode';
 
 const AuthAndSyncContext = createContext<AuthAndSyncContextType | undefined>(undefined);
 
@@ -38,8 +42,21 @@ export const AuthAndSyncProvider: React.FC<{ children: React.ReactNode }> = ({ c
         console.error('Error parsing stored session', e);
       }
     }
-    return INITIAL_USER_ACCOUNT;
+    return null;
   });
+
+  const [isGuest, setIsGuest] = useState<boolean>(() => {
+    return localStorage.getItem(GUEST_KEY) === 'true';
+  });
+
+  const setGuestMode = (val: boolean) => {
+    setIsGuest(val);
+    if (val) {
+      localStorage.setItem(GUEST_KEY, 'true');
+    } else {
+      localStorage.removeItem(GUEST_KEY);
+    }
+  };
 
   const [isSyncing, setIsSyncing] = useState<boolean>(false);
   const [lastSyncTime, setLastSyncTime] = useState<Date>(new Date());
@@ -55,7 +72,20 @@ export const AuthAndSyncProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
   const login = async (email: string, role: string = 'Channel Owner (Ash)', name?: string): Promise<boolean> => {
     setIsSyncing(true);
-    await new Promise((res) => setTimeout(res, 600));
+
+    try {
+      const apiUser = await loginUserApi(email, role, name);
+      if (apiUser) {
+        setUser(apiUser);
+        setLastSyncTime(new Date());
+        setIsSyncing(false);
+        setSyncSuccessMessage('Logged in & synchronized profile with MySQL backend');
+        setTimeout(() => setSyncSuccessMessage(null), 3500);
+        return true;
+      }
+    } catch (e) {
+      console.warn('API login fallback', e);
+    }
 
     const loggedInUser: UserAccount = {
       ...INITIAL_USER_ACCOUNT,
@@ -75,7 +105,20 @@ export const AuthAndSyncProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
   const signup = async (name: string, email: string, role: string = 'Data Analyst'): Promise<boolean> => {
     setIsSyncing(true);
-    await new Promise((res) => setTimeout(res, 700));
+
+    try {
+      const apiUser = await signupUserApi(name, email, role);
+      if (apiUser) {
+        setUser(apiUser);
+        setLastSyncTime(new Date());
+        setIsSyncing(false);
+        setSyncSuccessMessage('Account registered in MySQL! Cross-device sync initialized');
+        setTimeout(() => setSyncSuccessMessage(null), 3500);
+        return true;
+      }
+    } catch (e) {
+      console.warn('API signup fallback', e);
+    }
 
     const newUser: UserAccount = {
       id: `usr_${Date.now().toString(36)}`,
@@ -113,12 +156,28 @@ export const AuthAndSyncProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
   const logout = () => {
     setUser(null);
+    setIsGuest(false);
+    localStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem(GUEST_KEY);
   };
 
   const forceSyncNow = async () => {
     if (!user) return;
     setIsSyncing(true);
-    await new Promise((res) => setTimeout(res, 900));
+
+    try {
+      await syncDeviceApi({
+        user_id: user.id,
+        saved_video_ids: user.saved_video_ids,
+        saved_comparisons: user.saved_comparisons,
+        custom_queries: user.custom_queries,
+        notification_settings: user.notification_settings,
+      });
+    } catch (e) {
+      console.warn('API sync warning', e);
+    }
+
+    await new Promise((res) => setTimeout(res, 600));
 
     const updatedDevices = user.connected_devices.map((dev) =>
       dev.is_current
@@ -256,6 +315,8 @@ export const AuthAndSyncProvider: React.FC<{ children: React.ReactNode }> = ({ c
       value={{
         user,
         isAuthenticated: !!user,
+        isGuest,
+        setGuestMode,
         isSyncing,
         lastSyncTime,
         syncSuccessMessage,

@@ -6,132 +6,90 @@ export const CHANNELS: Channel[] = [
   {
     channel_id: 'ashrides26_official',
     name: 'AshRides26',
-    handle: '@AshRides26',
+    handle: '@ashrides26',
     avatar_url: 'https://images.unsplash.com/photo-1558981806-ec527fa84c39?w=150&auto=format&fit=crop&q=80',
     banner_url: 'https://images.unsplash.com/photo-1568772585407-9361f9bf3a87?w=1200&auto=format&fit=crop&q=80',
     subscribers: 342800,
     total_views: 48920400,
     total_videos: 148,
     country: 'United States',
-    primary_bike: 'Yamaha YZF-R1M & Kawasaki ZX-10R',
+    primary_bike: 'Yamaha YZF-R1M, Kawasaki ZX-10R & Adventure Rig',
     joined_date: '2021-04-12',
     verified: true,
     is_primary: true,
-    description: 'High-octane superbike reviews, track day telemetry, raw canyon motovlogs, and motorcycle DIY mods. Dedicated to pure exhaust notes and apex precision.',
+    description: 'Official YouTube channel @ashrides26. Dedicated to motorcycle adventure tours (Gainesville to Asheville, NC), mountain twisties, trail alterations & maintenance, raw canyon motovlogs, and superbike telemetry.',
     avg_views_per_video: 330543,
-    sub_growth_monthly_pct: 7.8
-  },
-  {
-    channel_id: 'chase_on_two_wheels',
-    name: 'ChaseOnTwoWheels',
-    handle: '@chaseontwowheels',
-    avatar_url: 'https://images.unsplash.com/photo-1568772585407-9361f9bf3a87?w=150&auto=format&fit=crop&q=80',
-    banner_url: 'https://images.unsplash.com/photo-1558981403-c5f9899a28bc?w=1200&auto=format&fit=crop&q=80',
-    subscribers: 1820000,
-    total_views: 312000000,
-    total_videos: 1240,
-    country: 'United States',
-    primary_bike: 'First Ride Reviews / Multi-Bike',
-    joined_date: '2011-09-03',
-    verified: true,
-    is_primary: false,
-    description: 'First Ride motorcycle reviews, garage rebuilds, and motovlogging adventures.',
-    avg_views_per_video: 251612,
-    sub_growth_monthly_pct: 1.4
-  },
-  {
-    channel_id: 'yammie_noob',
-    name: 'Yammie Noob',
-    handle: '@yammienoob',
-    avatar_url: 'https://images.unsplash.com/photo-1558980394-4c7c9299fe96?w=150&auto=format&fit=crop&q=80',
-    banner_url: 'https://images.unsplash.com/photo-1558981420-87aa9210d991?w=1200&auto=format&fit=crop&q=80',
-    subscribers: 1450000,
-    total_views: 289000000,
-    total_videos: 1520,
-    country: 'United States',
-    primary_bike: 'Triumph Daytona 675 / Supermoto',
-    joined_date: '2015-11-18',
-    verified: true,
-    is_primary: false,
-    description: 'Motorcycle culture, beginner bike guides, tier lists, and humorous commentary.',
-    avg_views_per_video: 190131,
-    sub_growth_monthly_pct: 2.1
-  },
-  {
-    channel_id: 'spites_corner',
-    name: "Spite's Corner",
-    handle: '@spitescorner',
-    avatar_url: 'https://images.unsplash.com/photo-1609630875171-b1321377ee65?w=150&auto=format&fit=crop&q=80',
-    banner_url: 'https://images.unsplash.com/photo-1558981806-ec527fa84c39?w=1200&auto=format&fit=crop&q=80',
-    subscribers: 420000,
-    total_views: 64200000,
-    total_videos: 310,
-    country: 'United States',
-    primary_bike: 'Yamaha MT-09 SP',
-    joined_date: '2019-02-14',
-    verified: true,
-    is_primary: false,
-    description: 'Honest, gritty motorcycle reviews and motovlogs with technical breakdown.',
-    avg_views_per_video: 207096,
-    sub_growth_monthly_pct: 5.4
-  },
-  {
-    channel_id: 'suburban_delinquent',
-    name: 'Suburban Delinquent',
-    handle: '@suburbandelinquent',
-    avatar_url: 'https://images.unsplash.com/photo-1558981408-db0ecd8a1ee4?w=150&auto=format&fit=crop&q=80',
-    banner_url: 'https://images.unsplash.com/photo-1568772585407-9361f9bf3a87?w=1200&auto=format&fit=crop&q=80',
-    subscribers: 685000,
-    total_views: 98000000,
-    total_videos: 580,
-    country: 'United States',
-    primary_bike: 'Honda CBR1000RR',
-    joined_date: '2013-05-19',
-    verified: true,
-    is_primary: false,
-    description: 'Original Southern California motovlogging, group rides, and city antics.',
-    avg_views_per_video: 168965,
-    sub_growth_monthly_pct: 1.1
-  },
-  {
-    channel_id: 'dandanthefireman',
-    name: 'DanDanTheFireman',
-    handle: '@DanDanTheFireman',
-    avatar_url: 'https://images.unsplash.com/photo-1558980664-769d59546b3d?w=150&auto=format&fit=crop&q=80',
-    banner_url: 'https://images.unsplash.com/photo-1558981403-c5f9899a28bc?w=1200&auto=format&fit=crop&q=80',
-    subscribers: 512000,
-    total_views: 82500000,
-    total_videos: 790,
-    country: 'United States',
-    primary_bike: 'Indian Challenger / Adventure',
-    joined_date: '2016-08-22',
-    verified: true,
-    is_primary: false,
-    description: 'Motorcycle crash analysis, safety education, hazard patterns, and gear reviews.',
-    avg_views_per_video: 104430,
-    sub_growth_monthly_pct: 3.2
-  },
-  {
-    channel_id: 'max_wrist',
-    name: 'Max Wrist',
-    handle: '@maxwrist',
-    avatar_url: 'https://images.unsplash.com/photo-1558980394-4c7c9299fe96?w=150&auto=format&fit=crop&q=80',
-    banner_url: 'https://images.unsplash.com/photo-1558981806-ec527fa84c39?w=1200&auto=format&fit=crop&q=80',
-    subscribers: 1180000,
-    total_views: 245000000,
-    total_videos: 410,
-    country: 'Italy',
-    primary_bike: 'BMW S1000RR / Ducati V4',
-    joined_date: '2015-03-10',
-    verified: true,
-    is_primary: false,
-    description: 'Extreme aggressive sportbike POV riding on twisty mountain passes and autobahns.',
-    avg_views_per_video: 597560,
-    sub_growth_monthly_pct: 4.0
+    sub_growth_monthly_pct: 7.8,
+    channel_url: 'https://youtube.com/@ashrides26?si=fFlM8mxI6AMdyinO'
   }
 ];
 
 export const VIDEOS: Video[] = [
+  {
+    video_id: 'ash_vid_adv_01',
+    channel_id: 'ashrides26_official',
+    title: 'Motorcycle Adventure: Gainesville to Asheville NC - Mountain Twisties & Scenic Passes',
+    thumbnail_url: 'https://images.unsplash.com/photo-1558981403-c5f9899a28bc?w=600&auto=format&fit=crop&q=80',
+    category: 'vlog',
+    bike_model: 'Adventure Sport Touring Rig',
+    duration_seconds: 1620, // 27 mins
+    upload_date: '2026-08-28',
+    views: 742000,
+    likes: 68400,
+    comments: 4920,
+    retention_pct: 73.5,
+    watch_time_hours: 198000,
+    ctr_pct: 14.2,
+    cpm_usd: 7.80,
+    estimated_revenue_usd: 5787,
+    velocity_views_per_hr: 1120,
+    tags: ['AshRides26', 'Gainesville', 'Asheville NC', 'Mountain Twisties', 'Motorcycle Trip', 'Adventure Riding', 'Blue Ridge'],
+    is_trending: true,
+    trending_score: 97,
+    audio_sound_profile: 'Windslayer Helmet Audio + Sena 50S Intercom with Dad',
+    top_demographic: 'Adventure & Dual-Sport Riders 20-50',
+    youtube_url: 'https://youtube.com/@ashrides26?si=fFlM8mxI6AMdyinO',
+    retention_curve: [
+      { second: 0, pct_retention: 100, chapter_name: 'Departing Gainesville Highway Run' },
+      { second: 240, pct_retention: 91, chapter_name: 'Crossing Georgia State Line' },
+      { second: 620, pct_retention: 86, chapter_name: 'First Mountain Twisties & Elevation Climb' },
+      { second: 950, pct_retention: 90, chapter_name: 'Trail Alterations & Small Crash Save', is_spike_point: true, note: 'Rewatched 1.3x' },
+      { second: 1300, pct_retention: 78, chapter_name: 'Car Show Encounter in the Valley' },
+      { second: 1620, pct_retention: 62, chapter_name: 'Arriving in Asheville NC & Wrap Up' }
+    ]
+  },
+  {
+    video_id: 'ash_vid_adv_02',
+    channel_id: 'ashrides26_official',
+    title: 'Trail Alterations & Quick Repairs on the Mountain Trail | Roadtrip Vlog',
+    thumbnail_url: 'https://images.unsplash.com/photo-1558981408-db0ecd8a1ee4?w=600&auto=format&fit=crop&q=80',
+    category: 'vlog',
+    bike_model: 'Adventure Sport / Dual Setup',
+    duration_seconds: 1180, // 19.6 mins
+    upload_date: '2026-08-15',
+    views: 531000,
+    likes: 44100,
+    comments: 3120,
+    retention_pct: 69.8,
+    watch_time_hours: 123000,
+    ctr_pct: 11.5,
+    cpm_usd: 7.10,
+    estimated_revenue_usd: 3770,
+    velocity_views_per_hr: 680,
+    tags: ['AshRides26', 'Trail Repairs', 'Motorcycle Maintenance', 'Roadtrip', 'Offroad', 'Tool Kit'],
+    is_trending: false,
+    trending_score: 82,
+    audio_sound_profile: 'Trailside Ambient + Tool Clanks',
+    top_demographic: 'Motorcycle Tour & DIY Riders',
+    youtube_url: 'https://youtube.com/@ashrides26?si=fFlM8mxI6AMdyinO',
+    retention_curve: [
+      { second: 0, pct_retention: 100, chapter_name: 'Trail Stop & Inspection' },
+      { second: 180, pct_retention: 88, chapter_name: 'Assessing Trail Incident & Scrapes' },
+      { second: 450, pct_retention: 84, chapter_name: 'Unpacking Portable Tool Kit' },
+      { second: 750, pct_retention: 87, chapter_name: 'Adjusting Levers & Trail Fixes', is_spike_point: true },
+      { second: 1180, pct_retention: 58, chapter_name: 'Back on the Twisties' }
+    ]
+  },
   {
     video_id: 'ash_vid_01',
     channel_id: 'ashrides26_official',
@@ -693,14 +651,17 @@ export const INITIAL_TRENDING_ALERTS: TrendingAlert[] = [
   },
   {
     id: 'alert_004',
-    channel_name: 'ChaseOnTwoWheels',
-    alert_type: 'competitor_breakout',
-    multiplier: 2.1,
-    metric_value: '+12.4k Subs / 24h',
-    message: 'Competitor Alert: ChaseOnTwoWheels posted "2025 Yamaha R9 First Ride" spiking in Search.',
+    video_id: 'ash_vid_adv_01',
+    channel_name: 'AshRides26',
+    video_title: 'Motorcycle Adventure: Gainesville to Asheville NC - Mountain Twisties & Scenic Passes',
+    category: 'vlog',
+    alert_type: 'velocity_surge',
+    multiplier: 3.4,
+    metric_value: '+8.4k Views / 12h',
+    message: 'Roadtrip Adventure Surge: High viewer engagement on the Gainesville to Asheville NC mountain twisties journey!',
     timestamp: '4 hours ago',
     is_read: true,
-    priority: 'info'
+    priority: 'high'
   },
   {
     id: 'alert_005',
@@ -779,7 +740,7 @@ export const INITIAL_USER_ACCOUNT: UserAccount = {
     ROUND(SUM(v.views) / SUM(v.duration_seconds), 2) AS view_density_factor
 FROM fact_video_metrics v
 JOIN dim_channels c ON v.channel_id = c.channel_id
-WHERE c.handle = '@AshRides26'
+WHERE LOWER(c.handle) = '@ashrides26'
 GROUP BY v.category
 ORDER BY avg_retention_pct DESC;`,
       category: 'Aggregation',
@@ -816,21 +777,21 @@ ORDER BY surge_multiplier DESC;`,
     },
     {
       id: 'query_03',
-      title: 'Multi-Channel Benchmark: AshRides26 vs Niche Competitors',
-      description: 'Joins channel dimensions with aggregated fact tables to compare engagement rate, average views, and subscriber momentum.',
+      title: '@ashrides26 Content Pillar & Adventure Series Performance',
+      description: 'Aggregates metrics by category and bike model to identify the highest-converting video formats and viewer retention.',
       sql: `SELECT 
-    c.name AS channel_name,
-    c.subscribers,
-    c.total_videos,
-    ROUND(c.total_views / c.total_videos, 0) AS avg_views_per_video,
-    c.sub_growth_monthly_pct,
-    COUNT(CASE WHEN v.category = 'shorts' THEN 1 END) AS shorts_count,
-    ROUND(AVG(v.retention_pct), 1) AS sample_avg_retention,
-    ROUND(AVG(CAST(v.likes + v.comments AS FLOAT) / NULLIF(v.views, 0) * 100), 2) AS engagement_rate_pct
-FROM dim_channels c
-LEFT JOIN fact_video_metrics v ON c.channel_id = v.channel_id
-GROUP BY c.channel_id, c.name, c.subscribers, c.total_videos, c.total_views, c.sub_growth_monthly_pct
-ORDER BY c.subscribers DESC;`,
+    v.category,
+    v.bike_model,
+    COUNT(v.video_id) AS video_count,
+    ROUND(AVG(v.views), 0) AS avg_views,
+    ROUND(AVG(v.retention_pct), 1) AS avg_retention_pct,
+    ROUND(AVG(v.ctr_pct), 1) AS avg_ctr_pct,
+    ROUND(SUM(v.estimated_revenue_usd), 2) AS total_revenue_usd
+FROM fact_video_metrics v
+JOIN dim_channels c ON v.channel_id = c.channel_id
+WHERE c.handle = '@ashrides26'
+GROUP BY v.category, v.bike_model
+ORDER BY avg_views DESC;`,
       category: 'Cross-Table Joins',
       created_at: '2026-08-26'
     }

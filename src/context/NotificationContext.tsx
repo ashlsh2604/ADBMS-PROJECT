@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { TrendingAlert, AlertType, AlertPriority } from '../types/database';
 import { INITIAL_TRENDING_ALERTS, VIDEOS } from '../data/mockDbmsData';
+import { fetchAlerts, markAlertAsReadApi, triggerNewAlertApi } from '../services/api';
 
 interface NotificationContextType {
   alerts: TrendingAlert[];
@@ -32,6 +33,16 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
 
   const [activeToast, setActiveToast] = useState<TrendingAlert | null>(null);
   const [hasBrowserPermission, setHasBrowserPermission] = useState<boolean>(false);
+
+  useEffect(() => {
+    fetchAlerts()
+      .then((data) => {
+        if (data && data.length > 0) {
+          setAlerts(data);
+        }
+      })
+      .catch((err) => console.warn('Could not fetch alerts from MySQL backend', err));
+  }, []);
 
   useEffect(() => {
     if ('Notification' in window) {
@@ -78,6 +89,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
 
   const markAsRead = (id: string) => {
     setAlerts((prev) => prev.map((a) => (a.id === id ? { ...a, is_read: true } : a)));
+    markAlertAsReadApi(id).catch(() => {});
   };
 
   const markAllAsRead = () => {

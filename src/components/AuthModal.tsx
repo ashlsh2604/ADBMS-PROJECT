@@ -9,9 +9,10 @@ import confetti from 'canvas-confetti';
 interface AuthModalProps {
   isOpen: boolean;
   onClose: () => void;
+  onOpenFullPage?: (mode: 'login' | 'signup') => void;
 }
 
-export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
+export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onOpenFullPage }) => {
   const { login, signup, isSyncing } = useAuthAndSync();
   const [mode, setMode] = useState<'login' | 'signup'>('login');
   const [email, setEmail] = useState('');
@@ -269,6 +270,22 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
                 </>
               )}
             </button>
+
+            {onOpenFullPage && (
+              <div className="text-center pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    onClose();
+                    onOpenFullPage(mode);
+                  }}
+                  className="text-xs font-mono text-slate-400 hover:text-orange-400 transition underline underline-offset-4"
+                  id="auth-open-full-page-btn"
+                >
+                  Prefer dedicated full-screen page? Open {mode === 'login' ? 'Login Page' : 'Sign Up Page'}
+                </button>
+              </div>
+            )}
           </form>
         </div>
       </div>

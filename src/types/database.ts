@@ -17,6 +17,7 @@ export interface Channel {
   description: string;
   avg_views_per_video: number;
   sub_growth_monthly_pct: number;
+  channel_url?: string;
 }
 
 export interface RetentionPoint {
@@ -51,6 +52,7 @@ export interface Video {
   trending_score: number; // 0-100
   audio_sound_profile?: string; // e.g. "Akrapovic Full Titanium", "SC-Project CR-T", "Austin Racing GP1R"
   top_demographic?: string;
+  youtube_url?: string;
   retention_curve: RetentionPoint[];
 }
 

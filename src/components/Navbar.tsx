@@ -3,16 +3,19 @@ import { useAuthAndSync } from '../context/AuthAndSyncContext';
 import { useNotifications } from '../context/NotificationContext';
 import { 
   Gauge, Flame, Bell, RefreshCw, User, Database, BarChart3, 
-  Layers, Search, Globe2, Sparkles, Shield, LogOut, Check
+  Layers, Search, Globe2, Sparkles, Shield, LogOut, Check, Youtube
 } from 'lucide-react';
 
 interface NavbarProps {
-  activeTab: 'dashboard' | 'growth' | 'compare' | 'channels' | 'dbms';
-  setActiveTab: (tab: 'dashboard' | 'growth' | 'compare' | 'channels' | 'dbms') => void;
+  activeTab: 'dashboard' | 'growth' | 'compare' | 'channels' | 'dbms' | 'login' | 'signup';
+  setActiveTab: (tab: 'dashboard' | 'growth' | 'compare' | 'channels' | 'dbms' | 'login' | 'signup') => void;
   onOpenAuth: () => void;
   onOpenSync: () => void;
   onOpenAlerts: () => void;
   onOpenSearchFocus: () => void;
+  onNavigateToLogin: () => void;
+  onNavigateToSignUp: () => void;
+  onLogout?: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -21,10 +24,22 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenAuth,
   onOpenSync,
   onOpenAlerts,
-  onOpenSearchFocus
+  onOpenSearchFocus,
+  onNavigateToLogin,
+  onNavigateToSignUp,
+  onLogout,
 }) => {
-  const { user, isAuthenticated, logout, isSyncing, lastSyncTime } = useAuthAndSync();
+  const { user, isAuthenticated, isGuest, logout, isSyncing, lastSyncTime } = useAuthAndSync();
   const { unreadCount } = useNotifications();
+
+  const handleLogoutAction = () => {
+    if (onLogout) {
+      onLogout();
+    } else {
+      logout();
+      onNavigateToLogin();
+    }
+  };
 
   return (
     <header className="sticky top-0 z-40 bg-[#090d16]/95 border-b border-slate-800/90 backdrop-blur-xl" id="main-navigation-bar">
@@ -109,8 +124,8 @@ export const Navbar: React.FC<NavbarProps> = ({
               }`}
               id="nav-tab-channels"
             >
-              <Globe2 className="w-3.5 h-3.5" />
-              <span>Channel Benchmarking</span>
+              <Youtube className="w-3.5 h-3.5 text-red-500" />
+              <span>YouTube Hub</span>
             </button>
 
             <button
@@ -129,6 +144,17 @@ export const Navbar: React.FC<NavbarProps> = ({
 
           {/* Right Action Cluster */}
           <div className="flex items-center gap-2">
+            {/* MySQL Database Engine Indicator */}
+            <button
+              onClick={() => setActiveTab('dbms')}
+              className="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-cyan-950/40 hover:bg-cyan-900/40 border border-cyan-500/30 text-xs font-mono text-cyan-300 transition"
+              title="MySQL 8.0 Relational Engine Online - Open DBMS Workbench"
+              id="nav-mysql-status-btn"
+            >
+              <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
+              <span>MySQL 8.0</span>
+            </button>
+
             {/* Cross-Device Sync Status Button */}
             <button
               onClick={onOpenSync}
@@ -158,13 +184,14 @@ export const Navbar: React.FC<NavbarProps> = ({
               )}
             </button>
 
-            {/* Account Profile / Auth Button */}
+            {/* Account Profile / Auth Button Cluster */}
             {isAuthenticated && user ? (
               <div className="flex items-center gap-1.5">
                 <button
                   onClick={onOpenAuth}
                   className="flex items-center gap-2 pl-2 pr-3 py-1 bg-slate-900/90 hover:bg-slate-800 border border-slate-800 rounded-xl transition group"
                   id="nav-user-profile-btn"
+                  title="View Profile & Notification Settings"
                 >
                   <img
                     src={user.avatar}
@@ -180,16 +207,49 @@ export const Navbar: React.FC<NavbarProps> = ({
                     </div>
                   </div>
                 </button>
+
+                <button
+                  onClick={handleLogoutAction}
+                  className="p-1.5 rounded-lg text-slate-400 hover:text-red-400 hover:bg-slate-800/80 transition"
+                  title="Sign Out & Redirect to Login"
+                  id="nav-logout-btn"
+                >
+                  <LogOut className="w-4 h-4" />
+                </button>
               </div>
             ) : (
-              <button
-                onClick={onOpenAuth}
-                className="px-3 py-1.5 rounded-lg bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-bold text-xs shadow-md shadow-orange-500/20 transition flex items-center gap-1.5"
-                id="nav-login-btn"
-              >
-                <User className="w-3.5 h-3.5" />
-                <span>Sign In</span>
-              </button>
+              <div className="flex items-center gap-1.5">
+                {isGuest && (
+                  <span className="hidden sm:inline-flex items-center gap-1 text-[10px] font-mono px-2 py-0.5 rounded-md bg-slate-800/90 text-amber-400 border border-amber-500/30">
+                    <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+                    Guest Analyst
+                  </span>
+                )}
+                <button
+                  onClick={onNavigateToLogin}
+                  className={`px-3 py-1.5 rounded-lg font-bold text-xs transition flex items-center gap-1.5 ${
+                    activeTab === 'login'
+                      ? 'bg-orange-500 text-white shadow-md shadow-orange-500/20'
+                      : 'bg-slate-900/90 hover:bg-slate-800 text-slate-200 border border-slate-700/80 hover:border-slate-600'
+                  }`}
+                  id="nav-login-btn"
+                >
+                  <User className="w-3.5 h-3.5" />
+                  <span>Sign In</span>
+                </button>
+
+                <button
+                  onClick={onNavigateToSignUp}
+                  className={`hidden sm:flex px-3 py-1.5 rounded-lg font-bold text-xs transition items-center gap-1.5 ${
+                    activeTab === 'signup'
+                      ? 'bg-orange-500 text-white shadow-md shadow-orange-500/20'
+                      : 'bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white shadow-md shadow-orange-500/20'
+                  }`}
+                  id="nav-signup-btn"
+                >
+                  <span>Sign Up</span>
+                </button>
+              </div>
             )}
           </div>
         </div>
@@ -219,7 +279,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           onClick={() => setActiveTab('channels')}
           className={`py-1 px-2 rounded font-semibold ${activeTab === 'channels' ? 'text-orange-400' : 'text-slate-400'}`}
         >
-          Channels
+          YouTube
         </button>
         <button
           onClick={() => setActiveTab('dbms')}
