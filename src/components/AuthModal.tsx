@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import { fetchAppConfig } from '../services/api';
 import { useAuthAndSync } from '../context/AuthAndSyncContext';
 import { 
   ShieldCheck, Lock, Mail, User, KeyRound, Smartphone, CheckCircle2, 
@@ -13,12 +14,14 @@ interface AuthModalProps {
 }
 
 export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onOpenFullPage }) => {
-  const { login, signup, isSyncing } = useAuthAndSync();
+  const { login, signup, demoLogin, isSyncing } = useAuthAndSync();
+  const [demoMode, setDemoMode] = useState(false);
+  useEffect(() => { fetchAppConfig().then((c) => setDemoMode(c.demoMode)).catch(() => setDemoMode(false)); }, []);
   const [mode, setMode] = useState<'login' | 'signup'>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
-  const [role, setRole] = useState<string>('Channel Owner (Ash)');
+  const [role, setRole] = useState<string>('Data Analyst');
   const [error, setError] = useState<string | null>(null);
 
   if (!isOpen) return null;
@@ -34,13 +37,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onOpenFul
 
     try {
       if (mode === 'login') {
-        await login(email, role, name);
+        await login(email, password);
       } else {
         if (!name) {
           setError('Please provide your name');
           return;
         }
-        await signup(name, email, role);
+        await signup(name, email, password, role);
       }
 
       confetti({
@@ -55,15 +58,17 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onOpenFul
     }
   };
 
-  const handleQuickDemoLogin = async (demoRole: string, demoEmail: string, demoName: string) => {
+  const handleQuickDemoLogin = async (profile: 'owner' | 'architect') => {
     setError(null);
-    await login(demoEmail, demoRole, demoName);
+    try {
+      await demoLogin(profile);
     confetti({
       particleCount: 40,
       spread: 50,
       origin: { y: 0.7 }
     });
     onClose();
+    } catch (err: any) { setError(err?.message || 'Demo login failed'); }
   };
 
   return (
@@ -133,7 +138,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onOpenFul
           </div>
 
           {/* Quick 1-Click Evaluation Presets */}
-          <div className="mb-6 p-3.5 rounded-xl bg-slate-900/70 border border-slate-800/80 space-y-2">
+          {demoMode && <div className="mb-6 p-3.5 rounded-xl bg-slate-900/70 border border-slate-800/80 space-y-2">
             <div className="flex items-center justify-between text-[11px] text-slate-400 font-mono">
               <span className="flex items-center gap-1.5">
                 <Sparkles className="w-3.5 h-3.5 text-amber-400" />
@@ -144,7 +149,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onOpenFul
             <div className="grid grid-cols-2 gap-2">
               <button
                 type="button"
-                onClick={() => handleQuickDemoLogin('Channel Owner (Ash)', 'ash@ashrides26.motovlog', 'Ash (AshRides26)')}
+                onClick={() => handleQuickDemoLogin('owner')}
                 className="p-2 text-left bg-slate-800/80 hover:bg-slate-800 border border-orange-500/30 hover:border-orange-500/60 rounded-lg text-xs transition group"
                 id="demo-login-ash"
               >
@@ -153,7 +158,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onOpenFul
               </button>
               <button
                 type="button"
-                onClick={() => handleQuickDemoLogin('DBMS Lead Architect', 'analyst@dbms.project', 'Alex (DBMS Architect)')}
+                onClick={() => handleQuickDemoLogin('architect')}
                 className="p-2 text-left bg-slate-800/80 hover:bg-slate-800 border border-cyan-500/30 hover:border-cyan-500/60 rounded-lg text-xs transition group"
                 id="demo-login-analyst"
               >
@@ -161,7 +166,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onOpenFul
                 <div className="text-[10px] text-slate-400 font-mono truncate">SQL & Schema Lead</div>
               </button>
             </div>
-          </div>
+          </div>}
 
           {error && (
             <div className="mb-4 p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-red-300 text-xs font-medium">
@@ -233,8 +238,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onOpenFul
                 onChange={(e) => setRole(e.target.value)}
                 className="w-full bg-slate-900/90 border border-slate-700/80 rounded-xl px-3.5 py-2.5 text-xs text-slate-200 focus:outline-none focus:border-orange-500"
               >
-                <option value="Channel Owner (Ash)">Channel Owner (Ash)</option>
-                <option value="DBMS Lead Architect">DBMS Lead Architect</option>
                 <option value="Data Analyst">Data Analyst</option>
                 <option value="Motovlog Editor">Motovlog Editor</option>
               </select>
@@ -248,7 +251,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onOpenFul
               </div>
               <div className="flex items-center gap-2">
                 <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-                <span>Encrypted with SHA-256 state hashing</span>
+                <span>Passwords are salted and hashed with scrypt</span>
               </div>
             </div>
 

@@ -36,10 +36,10 @@ export const MetricsOverviewCards: React.FC<MetricsOverviewCardsProps> = ({
         <div className="flex items-center gap-2 text-slate-400 font-mono">
           <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
           <span className="text-slate-300 font-semibold uppercase tracking-wider">DBMS Telemetry Stream</span>
-          <span className="hidden sm:inline">• Live DB Pipeline: 60fps</span>
+          <span className="hidden sm:inline">• Server-backed telemetry</span>
         </div>
         <div className="flex items-center gap-2 font-mono text-[11px] text-slate-400">
-          <span>Benchmarked against 6 Peer Motovlog Channels</span>
+          <span>Channel telemetry overview</span>
         </div>
       </div>
 

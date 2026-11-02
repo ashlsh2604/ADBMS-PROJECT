@@ -1,0 +1,165 @@
+{
+  "date": "2026-11-02T08:51:00.975Z",
+  "baseUrl": "http://127.0.0.1:3000",
+  "mode": "MySQL unavailable; demo fallback",
+  "summary": {
+    "total": 27,
+    "passed": 11,
+    "issues": 16,
+    "errors": 0
+  },
+  "results": [
+    {
+      "name": "Homepage serves React app",
+      "status": "PASS",
+      "observed": "HTTP 200, React root present"
+    },
+    {
+      "name": "Preview host accepted",
+      "status": "PASS",
+      "observed": "HTTP 200"
+    },
+    {
+      "name": "Health endpoint responds",
+      "status": "PASS",
+      "observed": "HTTP 200"
+    },
+    {
+      "name": "Database connection",
+      "status": "ISSUE",
+      "observed": "connect ECONNREFUSED 127.0.0.1:3306",
+      "expected": "Live MySQL for DBMS functionality"
+    },
+    {
+      "name": "Video list",
+      "status": "PASS",
+      "observed": "18 videos"
+    },
+    {
+      "name": "Category filters",
+      "status": "PASS",
+      "observed": "{\"vlog\":7,\"bike_review\":6,\"shorts\":5}"
+    },
+    {
+      "name": "Search filters",
+      "status": "PASS",
+      "observed": "Ducati: 5; nonexistent: 0"
+    },
+    {
+      "name": "Numeric sorting",
+      "status": "PASS",
+      "observed": "Ascending and descending views ordered correctly"
+    },
+    {
+      "name": "Video detail and missing ID",
+      "status": "PASS",
+      "observed": "Detail 200; unknown ID 404"
+    },
+    {
+      "name": "Video comparison",
+      "status": "PASS",
+      "observed": "2 matching videos"
+    },
+    {
+      "name": "Channels, growth, alerts",
+      "status": "PASS",
+      "observed": "1 channel, 12 growth records, 5 alerts"
+    },
+    {
+      "name": "Schema metadata matches SQL schema",
+      "status": "ISSUE",
+      "observed": "4 mock tables; status advertises 8",
+      "expected": "8 actual SQL tables"
+    },
+    {
+      "name": "Scalar SQL COUNT",
+      "status": "ISSUE",
+      "observed": "Returned 10 canned video rows",
+      "expected": "One scalar row with count 18"
+    },
+    {
+      "name": "Invalid SQL rejected",
+      "status": "ISSUE",
+      "observed": "HTTP 200, 10 fake rows",
+      "expected": "4xx SQL error"
+    },
+    {
+      "name": "Nonexistent SQL table rejected",
+      "status": "ISSUE",
+      "observed": "HTTP 200, 10 fake rows",
+      "expected": "4xx SQL error"
+    },
+    {
+      "name": "Empty SQL rejected",
+      "status": "PASS",
+      "observed": "HTTP 400"
+    },
+    {
+      "name": "Unknown API route returns JSON 404",
+      "status": "ISSUE",
+      "observed": "HTTP 200, text/html; charset=UTF-8",
+      "expected": "JSON 404"
+    },
+    {
+      "name": "Last-7-days uses current date",
+      "status": "ISSUE",
+      "observed": "Returned 2 records dated 2026-08-28, 2026-08-24",
+      "expected": "Relative to current date, not 2026-08-28"
+    },
+    {
+      "name": "Login requires registered credentials",
+      "status": "ISSUE",
+      "observed": "HTTP 200, success=true, shared account changed to unregistered-test@example.invalid, no session cookie",
+      "expected": "401 without changing account"
+    },
+    {
+      "name": "Signup creates an independent account",
+      "status": "ISSUE",
+      "observed": "HTTP 200; global /auth/me replaced with second-test@example.invalid",
+      "expected": "Separate persisted user; global identity unchanged"
+    },
+    {
+      "name": "Video payload validation",
+      "status": "ISSUE",
+      "observed": "HTTP 201, category=not-a-category, duration=-1, views=-10",
+      "expected": "400 validation error"
+    },
+    {
+      "name": "Duplicate video IDs rejected",
+      "status": "ISSUE",
+      "observed": "HTTP 201; 2 records share the same ID",
+      "expected": "409 conflict"
+    },
+    {
+      "name": "Future uploads excluded from recent history",
+      "status": "ISSUE",
+      "observed": "2027-01-01 upload appears in last-7-days results",
+      "expected": "Exclude future dates"
+    },
+    {
+      "name": "Alert payload validation",
+      "status": "ISSUE",
+      "observed": "HTTP 201, empty object stored",
+      "expected": "400 validation error"
+    },
+    {
+      "name": "Alert queries tolerate stored data",
+      "status": "ISSUE",
+      "observed": "HTTP 500: Cannot read properties of undefined (reading 'toUpperCase')",
+      "expected": "200 or controlled validation, not server crash"
+    },
+    {
+      "name": "Unknown alert read status",
+      "status": "ISSUE",
+      "observed": "HTTP 200, success=false",
+      "expected": "404"
+    },
+    {
+      "name": "Sync persists saved workspace fields",
+      "status": "ISSUE",
+      "observed": "Only connected_devices changed; saved_video_ids and custom_queries ignored",
+      "expected": "Persist workspace fields per authenticated user"
+    }
+  ],
+  "note": "Mutation probes ran only against disposable in-memory demo state. No destructive SQL was sent."
+}

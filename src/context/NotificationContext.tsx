@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { TrendingAlert, AlertType, AlertPriority } from '../types/database';
-import { INITIAL_TRENDING_ALERTS, VIDEOS } from '../data/mockDbmsData';
-import { fetchAlerts, markAlertAsReadApi, triggerNewAlertApi } from '../services/api';
+import { Video } from '../types/database';
+import { fetchAlerts, fetchVideos, markAlertAsReadApi, triggerNewAlertApi } from '../services/api';
 
 interface NotificationContextType {
   alerts: TrendingAlert[];
@@ -19,29 +19,15 @@ interface NotificationContextType {
 const NotificationContext = createContext<NotificationContextType | undefined>(undefined);
 
 export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [alerts, setAlerts] = useState<TrendingAlert[]>(() => {
-    const saved = localStorage.getItem('ashrides26_alerts');
-    if (saved) {
-      try {
-        return JSON.parse(saved);
-      } catch (e) {
-        console.error('Failed to parse alerts', e);
-      }
-    }
-    return INITIAL_TRENDING_ALERTS;
-  });
+  const [alerts, setAlerts] = useState<TrendingAlert[]>([]);
 
   const [activeToast, setActiveToast] = useState<TrendingAlert | null>(null);
   const [hasBrowserPermission, setHasBrowserPermission] = useState<boolean>(false);
 
   useEffect(() => {
     fetchAlerts()
-      .then((data) => {
-        if (data && data.length > 0) {
-          setAlerts(data);
-        }
-      })
-      .catch((err) => console.warn('Could not fetch alerts from MySQL backend', err));
+      .then(setAlerts)
+      .catch((err) => console.warn('Could not fetch alerts', err));
   }, []);
 
   useEffect(() => {
@@ -49,10 +35,6 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
       setHasBrowserPermission(Notification.permission === 'granted');
     }
   }, []);
-
-  useEffect(() => {
-    localStorage.setItem('ashrides26_alerts', JSON.stringify(alerts));
-  }, [alerts]);
 
   const unreadCount = alerts.filter((a) => !a.is_read).length;
 
@@ -92,7 +74,9 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     markAlertAsReadApi(id).catch(() => {});
   };
 
-  const markAllAsRead = () => {
+  const markAllAsRead = async () => {
+    const unread = alerts.filter((a) => !a.is_read);
+    await Promise.all(unread.map((a) => markAlertAsReadApi(a.id)));
     setAlerts((prev) => prev.map((a) => ({ ...a, is_read: true })));
   };
 
@@ -104,63 +88,24 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     setActiveToast(null);
   };
 
-  const triggerSimulatedAlert = (customType?: AlertType) => {
+  const triggerSimulatedAlert = async (customType?: AlertType) => {
+    const videos = await fetchVideos({});
+    if (!videos.length) return;
+    const randomVideo: Video = videos[Math.floor(Math.random() * videos.length)];
     const types: AlertType[] = ['velocity_surge', 'retention_spike', 'viral_short', 'milestone', 'competitor_breakout'];
     const selectedType = customType || types[Math.floor(Math.random() * types.length)];
-    const randomVideo = VIDEOS[Math.floor(Math.random() * VIDEOS.length)];
-
-    let title = randomVideo.title;
-    let message = '';
-    let metricValue = '';
-    let multiplier = 1.0;
-    let priority: AlertPriority = 'high';
-
-    switch (selectedType) {
-      case 'velocity_surge':
-        multiplier = Number((Math.random() * 3 + 2.2).toFixed(1));
-        metricValue = `+${Math.floor(multiplier * 1100)} views/hr (${multiplier}x normal)`;
-        message = `Live Velocity Spike! Algorithm feed impressions surge detected on ${randomVideo.category.replace('_', ' ')}.`;
-        priority = 'critical';
-        break;
-      case 'retention_spike':
-        multiplier = 1.5;
-        metricValue = `${(Math.random() * 15 + 82).toFixed(1)}% Retention`;
-        message = `Audience hook performance exceeded expectations! High replay rate on canyon exhaust section.`;
-        priority = 'high';
-        break;
-      case 'viral_short':
-        multiplier = 6.2;
-        metricValue = 'Shorts Feed Breakout (12.4k/hr)';
-        message = `Short-form algorithm explosion! Reached top 5 trending motorcycle reels.`;
-        priority = 'critical';
-        break;
-      case 'milestone':
-        metricValue = 'New Milestone: 500K Views!';
-        message = `The video crossed major DBMS database milestone threshold. Engagement rate 14.8%.`;
-        priority = 'medium';
-        break;
-      case 'competitor_breakout':
-        title = 'Yammie Noob';
-        metricValue = 'Uploaded: "Best Beginner Superbikes 2026"';
-        message = `Competitor channel published a directly competing topic. Real-time watch traffic shifting.`;
-        priority = 'info';
-        break;
-    }
-
-    const newAlert: TrendingAlert = {
-      id: `alert_${Date.now()}`,
+    const newAlert = await triggerNewAlertApi({
       video_id: randomVideo.video_id,
-      video_title: title,
+      video_title: randomVideo.title,
       channel_name: 'AshRides26',
       category: randomVideo.category,
       alert_type: selectedType,
-      multiplier,
-      metric_value: metricValue,
-      message,
-      timestamp: 'Just now',
-      is_read: false,
-      priority
-    };
+      multiplier: 2.5,
+      metric_value: 'Simulated telemetry spike',
+      message: 'Simulated alert generated from the dashboard and persisted by the API.',
+      priority: 'high',
+      timestamp: new Date().toISOString()
+    });
 
     setAlerts((prev) => [newAlert, ...prev]);
     setActiveToast(newAlert);

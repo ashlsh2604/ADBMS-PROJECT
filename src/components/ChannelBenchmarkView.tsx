@@ -1,7 +1,6 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Channel, Video, VideoCategory } from '../types/database';
-import { CHANNELS, VIDEOS } from '../data/mockDbmsData';
-import { createVideoApi } from '../services/api';
+import { createVideoApi, fetchChannels, fetchVideos } from '../services/api';
 import { 
   Youtube, ExternalLink, Globe2, Users, Eye, Video as VideoIcon, 
   TrendingUp, Award, CheckCircle2, Search, ArrowRight, Sparkles, 
@@ -34,6 +33,14 @@ export const ChannelBenchmarkView: React.FC<ChannelBenchmarkViewProps> = ({
   const [searchQuery, setSearchQuery] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [successToast, setSuccessToast] = useState<string | null>(null);
+  const [channel, setChannel] = useState<Channel | null>(null);
+  const [videos, setVideos] = useState<Video[]>([]);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  useEffect(() => {
+    Promise.all([fetchChannels(), fetchVideos()])
+      .then(([channels, loadedVideos]) => { setChannel(channels[0] || null); setVideos(loadedVideos); })
+      .catch((err) => setLoadError(err?.message || 'Could not load channel data'));
+  }, []);
 
   // New Video Form State
   const [newVideoUrl, setNewVideoUrl] = useState('');
@@ -44,27 +51,11 @@ export const ChannelBenchmarkView: React.FC<ChannelBenchmarkViewProps> = ({
   const [newVideoViews, setNewVideoViews] = useState('240000');
   const [newVideoTags, setNewVideoTags] = useState('AshRides26, Adventure, Mountain Twisties, Motovlog');
 
-  const ashChannel: Channel = CHANNELS[0] || {
-    channel_id: 'ashrides26_official',
-    name: 'AshRides26',
-    handle: '@ashrides26',
-    avatar_url: 'https://images.unsplash.com/photo-1558981806-ec527fa84c39?w=150&auto=format&fit=crop&q=80',
-    banner_url: 'https://images.unsplash.com/photo-1568772585407-9361f9bf3a87?w=1200&auto=format&fit=crop&q=80',
-    subscribers: 342800,
-    total_views: 48920400,
-    total_videos: 148,
-    country: 'United States',
-    primary_bike: 'Yamaha YZF-R1M, Kawasaki ZX-10R & Adventure Rig',
-    joined_date: '2021-04-12',
-    verified: true,
-    is_primary: true,
-    description: 'Official YouTube channel @ashrides26. Dedicated to motorcycle adventure tours (Gainesville to Asheville, NC), scenic mountain twisties, trail alterations & repairs, raw canyon motovlogs, and superbike telemetry.',
-    avg_views_per_video: 330543,
-    sub_growth_monthly_pct: 7.8,
-    channel_url: 'https://youtube.com/@ashrides26?si=fFlM8mxI6AMdyinO',
-  };
+  if (loadError) return <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-300">{loadError}</div>;
+  if (!channel) return <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-6 text-sm text-slate-400">Loading channel hub…</div>;
+  const ashChannel = channel;
 
-  const channelVideos = VIDEOS.filter((v) => {
+  const channelVideos = videos.filter((v) => {
     const matchesCategory = filterCategory === 'all' || v.category === filterCategory;
     const matchesSearch =
       v.title.toLowerCase().includes(searchQuery.toLowerCase()) ||

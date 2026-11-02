@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useAuthAndSync } from '../context/AuthAndSyncContext';
+import { fetchAppConfig } from '../services/api';
 import { 
   ShieldCheck, Lock, Mail, User, Eye, EyeOff, ArrowRight, ArrowLeft, 
   Sparkles, CheckCircle2, Database, Gauge, KeyRound, Smartphone, AlertCircle
@@ -21,7 +22,10 @@ export const LoginPage: React.FC<LoginPageProps> = ({
   notice,
   onContinueAsGuest,
 }) => {
-  const { login, isSyncing } = useAuthAndSync();
+  const { login, demoLogin, isSyncing } = useAuthAndSync();
+  const [demoMode, setDemoMode] = useState(false);
+
+  React.useEffect(() => { fetchAppConfig().then((config) => setDemoMode(config.demoMode)).catch(() => setDemoMode(false)); }, []);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [role, setRole] = useState<'Channel Owner (Ash)' | 'DBMS Lead Architect' | 'Data Analyst' | 'Motovlog Editor'>('Channel Owner (Ash)');
@@ -71,7 +75,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({
 
     setIsLoading(true);
     try {
-      const success = await login(email, role);
+      const success = await login(email, password);
       if (success) {
         triggerRedirect();
       }
@@ -82,15 +86,11 @@ export const LoginPage: React.FC<LoginPageProps> = ({
     }
   };
 
-  const handleQuickDemo = async (demoEmail: string, demoRole: any, demoName: string) => {
-    setEmail(demoEmail);
-    setPassword('demopass123');
-    setRole(demoRole);
+  const handleQuickDemo = async (profile: 'owner' | 'architect' | 'editor') => {
     setError(null);
     setIsLoading(true);
-    
     try {
-      await login(demoEmail, demoRole, demoName);
+      await demoLogin(profile);
       triggerRedirect();
     } catch (err: any) {
       setError(err?.message || 'Quick demo login failed.');
@@ -183,7 +183,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({
                     Authentication Verified!
                   </h3>
                   <p className="text-xs font-mono text-slate-300">
-                    Synchronizing device tokens with MySQL 8.0 database...
+                    Establishing a secure server session...
                   </p>
                   <div className="w-full bg-slate-800 rounded-full h-2 overflow-hidden">
                     <div className="bg-gradient-to-r from-orange-500 to-amber-400 h-full w-full animate-[pulse_1s_ease-in-out_infinite]" />
@@ -203,7 +203,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({
               ) : (
                 <>
                   {/* Quick Demo Fill Profiles */}
-                  <div className="mb-6 p-3 rounded-xl bg-slate-900/90 border border-slate-800/80">
+                  {demoMode && <div className="mb-6 p-3 rounded-xl bg-slate-900/90 border border-slate-800/80">
                     <div className="flex items-center justify-between mb-2">
                       <span className="text-[11px] font-mono text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
                         <Sparkles className="w-3 h-3 text-amber-400" />
@@ -214,7 +214,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({
                     <div className="grid grid-cols-3 gap-2">
                       <button
                         type="button"
-                        onClick={() => handleQuickDemo('ash@ashrides26.com', 'Channel Owner (Ash)', 'Ash (AshRides26)')}
+                        onClick={() => handleQuickDemo('owner')}
                         className="p-2 rounded-lg bg-slate-800/70 hover:bg-orange-950/40 border border-slate-700/60 hover:border-orange-500/40 text-left transition group"
                         id="demo-login-ash"
                       >
@@ -224,7 +224,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({
 
                       <button
                         type="button"
-                        onClick={() => handleQuickDemo('elena.data@ashrides26.com', 'Data Analyst', 'Elena Rostov')}
+                        onClick={() => handleQuickDemo('architect')}
                         className="p-2 rounded-lg bg-slate-800/70 hover:bg-cyan-950/40 border border-slate-700/60 hover:border-cyan-500/40 text-left transition group"
                         id="demo-login-analyst"
                       >
@@ -234,7 +234,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({
 
                       <button
                         type="button"
-                        onClick={() => handleQuickDemo('marcus.edits@ashrides26.com', 'Motovlog Editor', 'Marcus Vance')}
+                        onClick={() => handleQuickDemo('editor')}
                         className="p-2 rounded-lg bg-slate-800/70 hover:bg-amber-950/40 border border-slate-700/60 hover:border-amber-500/40 text-left transition group"
                         id="demo-login-editor"
                       >
@@ -242,7 +242,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({
                         <div className="text-[9px] font-mono text-slate-400 truncate">Shorts & Spikes</div>
                       </button>
                     </div>
-                  </div>
+                  </div>}
 
                   {/* Error Notice */}
                   {error && (
@@ -350,7 +350,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({
 
                       <span className="text-[11px] text-slate-500 font-mono flex items-center gap-1">
                         <Smartphone className="w-3 h-3 text-slate-400" />
-                        Device ID Auto-synced
+                        Server session
                       </span>
                     </div>
 
@@ -482,9 +482,9 @@ export const LoginPage: React.FC<LoginPageProps> = ({
             <div className="p-3.5 rounded-xl bg-slate-900/60 border border-slate-800/80 text-[11px] text-slate-400 font-mono">
               <div className="flex items-center gap-2 text-cyan-400 font-bold mb-1">
                 <Database className="w-3.5 h-3.5" />
-                <span>Encrypted Session Persistence</span>
+                <span>Server-side session</span>
               </div>
-              <span>Session tokens and device fingerprints stored securely with transactional rollback protection.</span>
+              <span>HttpOnly session cookie with server-side session lookup and expiry.</span>
             </div>
           </div>
 

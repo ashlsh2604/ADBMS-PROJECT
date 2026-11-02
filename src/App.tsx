@@ -1,18 +1,17 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback, Suspense } from 'react';
 import { AuthAndSyncProvider, useAuthAndSync } from './context/AuthAndSyncContext';
 import { NotificationProvider, useNotifications } from './context/NotificationContext';
-import { VIDEOS, CHANNELS } from './data/mockDbmsData';
 import { FilterState, Video } from './types/database';
 import { fetchVideos } from './services/api';
 import { Navbar } from './components/Navbar';
 import { SearchAndFilterBar } from './components/SearchAndFilterBar';
 import { MetricsOverviewCards } from './components/MetricsOverviewCards';
-import { InteractiveGrowthCharts } from './components/InteractiveGrowthCharts';
-import { VideoComparisonTool } from './components/VideoComparisonTool';
+const InteractiveGrowthCharts = React.lazy(() => import('./components/InteractiveGrowthCharts').then((module) => ({ default: module.InteractiveGrowthCharts })));
+const VideoComparisonTool = React.lazy(() => import('./components/VideoComparisonTool').then((module) => ({ default: module.VideoComparisonTool })));
 import { VideoListAndGrid } from './components/VideoListAndGrid';
-import { VideoDetailModal } from './components/VideoDetailModal';
-import { ChannelBenchmarkView } from './components/ChannelBenchmarkView';
-import { DbmsQueryWorkbench } from './components/DbmsQueryWorkbench';
+const VideoDetailModal = React.lazy(() => import('./components/VideoDetailModal').then((module) => ({ default: module.VideoDetailModal })));
+const ChannelBenchmarkView = React.lazy(() => import('./components/ChannelBenchmarkView').then((module) => ({ default: module.ChannelBenchmarkView })));
+const DbmsQueryWorkbench = React.lazy(() => import('./components/DbmsQueryWorkbench').then((module) => ({ default: module.DbmsQueryWorkbench })));
 import { AuthModal } from './components/AuthModal';
 import { DeviceSyncModal } from './components/DeviceSyncModal';
 import { TrendingAlertsDrawer } from './components/TrendingAlertsDrawer';
@@ -39,18 +38,20 @@ const DashboardContent: React.FC = () => {
   const [isAlertsOpen, setIsAlertsOpen] = useState(false);
   const [selectedVideoId, setSelectedVideoId] = useState<string | null>(null);
   const [comparisonVideoIds, setComparisonVideoIds] = useState<string[]>(['ash_vid_01', 'ash_vid_02']);
-  const [allVideos, setAllVideos] = useState<Video[]>(VIDEOS);
+  const [allVideos, setAllVideos] = useState<Video[]>([]);
+  const [videosLoading, setVideosLoading] = useState(true);
+  const [videosError, setVideosError] = useState<string | null>(null);
 
-  // Load from MySQL backend API on mount
-  useEffect(() => {
+  const loadVideos = useCallback(() => {
+    setVideosLoading(true);
+    setVideosError(null);
     fetchVideos()
-      .then((data) => {
-        if (data && data.length > 0) {
-          setAllVideos(data);
-        }
-      })
-      .catch((err) => console.warn('Could not fetch videos from MySQL backend', err));
+      .then(setAllVideos)
+      .catch((err) => setVideosError(err?.message || 'Could not load videos'))
+      .finally(() => setVideosLoading(false));
   }, []);
+
+  useEffect(() => { loadVideos(); }, [loadVideos]);
 
   const handleTabChange = (tab: TabType) => {
     setActiveTab(tab);
@@ -75,8 +76,8 @@ const DashboardContent: React.FC = () => {
     handleTabChange('signup');
   };
 
-  const handleLogout = () => {
-    logout();
+  const handleLogout = async () => {
+    await logout();
     setRedirectNotice('logged_out');
     setRedirectTarget('dashboard');
     handleTabChange('login');
@@ -144,6 +145,7 @@ const DashboardContent: React.FC = () => {
     category: 'all',
     dateRange: 'all',
     sortBy: 'views',
+    sortOrder: 'desc',
     searchQuery: '',
     bikeFilter: '',
   });
@@ -176,9 +178,9 @@ const DashboardContent: React.FC = () => {
       // Date range filter
       if (filter.dateRange !== 'all') {
         const upload = new Date(video.upload_date).getTime();
-        const now = new Date('2026-08-28').getTime();
+        const now = Date.now();
         const diffDays = (now - upload) / (1000 * 60 * 60 * 24);
-
+        if (diffDays < 0) return false;
         if (filter.dateRange === '7d' && diffDays > 7) return false;
         if (filter.dateRange === '30d' && diffDays > 30) return false;
         if (filter.dateRange === '90d' && diffDays > 90) return false;
@@ -187,24 +189,25 @@ const DashboardContent: React.FC = () => {
 
       return true;
     }).sort((a, b) => {
+      const direction = filter.sortOrder === 'asc' ? -1 : 1;
       // Sort logic
       switch (filter.sortBy) {
         case 'views':
-          return b.views - a.views;
+          return (b.views - a.views) * direction;
         case 'retention_pct':
-          return b.retention_pct - a.retention_pct;
+          return (b.retention_pct - a.retention_pct) * direction;
         case 'watch_time_hours':
-          return b.watch_time_hours - a.watch_time_hours;
+          return (b.watch_time_hours - a.watch_time_hours) * direction;
         case 'velocity_views_per_hr':
-          return b.velocity_views_per_hr - a.velocity_views_per_hr;
+          return (b.velocity_views_per_hr - a.velocity_views_per_hr) * direction;
         case 'likes':
-          return b.likes - a.likes;
+          return (b.likes - a.likes) * direction;
         case 'comments':
-          return b.comments - a.comments;
+          return (b.comments - a.comments) * direction;
         case 'upload_date':
-          return new Date(b.upload_date).getTime() - new Date(a.upload_date).getTime();
+          return (new Date(b.upload_date).getTime() - new Date(a.upload_date).getTime()) * direction;
         default:
-          return b.views - a.views;
+          return (b.views - a.views) * direction;
       }
     });
   }, [allVideos, filter]);
@@ -248,9 +251,12 @@ const DashboardContent: React.FC = () => {
 
       {/* Main Page Body Container */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+        <Suspense fallback={<div className="rounded-xl border border-slate-800 bg-slate-900/60 p-6 text-sm text-slate-400">Loading view…</div>}>
         {/* VIEW 1: Main Video Analytics Dashboard */}
         {activeTab === 'dashboard' && (
           <div className="space-y-6">
+            {videosError && <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-300 flex items-center justify-between gap-3"><span>{videosError}</span><button onClick={loadVideos} className="px-3 py-1 rounded-lg bg-red-500/20 text-xs font-bold">Retry</button></div>}
+            {videosLoading && <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-4 text-xs text-slate-400">Loading video telemetry…</div>}
             {/* KPI Cards Strip */}
             <MetricsOverviewCards
               videos={allVideos}
@@ -324,6 +330,7 @@ const DashboardContent: React.FC = () => {
           <LoginPage
             onNavigateToSignUp={() => handleNavigateToSignUp()}
             onNavigateToDashboard={(target) => handleAuthSuccessRedirect(target)}
+            onContinueAsGuest={handleContinueAsGuest}
             redirectTo={redirectTarget}
             notice={redirectNotice}
           />
@@ -338,9 +345,11 @@ const DashboardContent: React.FC = () => {
             redirectTo={redirectTarget}
           />
         )}
+        </Suspense>
       </main>
 
       {/* Modals & Slide-out Drawers */}
+      <Suspense fallback={null}>
       <AuthModal 
         isOpen={isAuthOpen} 
         onClose={() => setIsAuthOpen(false)} 
@@ -354,6 +363,7 @@ const DashboardContent: React.FC = () => {
         onClose={() => setSelectedVideoId(null)}
         onCompareVideo={handleCompareVideo}
       />
+      </Suspense>
 
       {/* Persistent Footer */}
       <footer className="border-t border-slate-800/80 bg-[#090d16] mt-12 py-8 text-xs font-mono text-slate-400">
@@ -369,11 +379,11 @@ const DashboardContent: React.FC = () => {
           </div>
 
           <div className="flex items-center gap-4 text-slate-400">
-            <span>Normalized 3NF DBMS Architecture</span>
+            <span>MySQL-backed when configured</span>
             <span>•</span>
-            <span>Live WebSocket Sync</span>
+            <span>Server-side sessions</span>
             <span>•</span>
-            <span>End-to-End Encrypted Sessions</span>
+            <span>Explicit demo mode</span>
           </div>
         </div>
       </footer>

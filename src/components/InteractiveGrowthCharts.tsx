@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
-import { MONTHLY_GROWTH_DATA } from '../data/mockDbmsData';
+import React, { useEffect, useState } from 'react';
+import type { MonthlyGrowth } from '../types/database';
+import { fetchMonthlyGrowth } from '../services/api';
 import { 
   ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, 
   CartesianGrid, BarChart, Bar, LineChart, Line, Legend, RadarChart, 
@@ -9,6 +10,9 @@ import { Flame, TrendingUp, Sparkles, DollarSign, Clock, Users, Layers, Activity
 
 export const InteractiveGrowthCharts: React.FC = () => {
   const [metricMode, setMetricMode] = useState<'views_split' | 'subs' | 'watch_time' | 'revenue'>('views_split');
+  const [data, setData] = useState<MonthlyGrowth[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  useEffect(() => { fetchMonthlyGrowth().then(setData).catch((err) => setError(err?.message || 'Could not load growth data')); }, []);
 
   // Category radar data
   const categoryRadarData = [
@@ -38,7 +42,10 @@ export const InteractiveGrowthCharts: React.FC = () => {
 
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
-      return (
+      if (error) return <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-300">{error}</div>;
+  if (!data.length) return <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-6 text-sm text-slate-400">Loading growth telemetry…</div>;
+
+  return (
         <div className="bg-[#0b111e]/95 border border-slate-700/80 rounded-xl p-3.5 shadow-2xl backdrop-blur-md text-xs font-mono">
           <div className="text-slate-300 font-bold mb-2 pb-1 border-b border-slate-800 flex items-center justify-between">
             <span>{label}</span>
@@ -133,7 +140,7 @@ export const InteractiveGrowthCharts: React.FC = () => {
         <div className="h-80 w-full pt-4">
           <ResponsiveContainer width="100%" height="100%">
             {metricMode === 'views_split' ? (
-              <AreaChart data={MONTHLY_GROWTH_DATA} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
+              <AreaChart data={data} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
                 <defs>
                   <linearGradient id="bikeReviewGrad" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor="#f97316" stopOpacity={0.8} />
@@ -158,7 +165,7 @@ export const InteractiveGrowthCharts: React.FC = () => {
                 <Area type="monotone" dataKey="shorts_views" name="Shorts" stackId="1" stroke="#eab308" fill="url(#shortsGrad)" strokeWidth={2} />
               </AreaChart>
             ) : metricMode === 'subs' ? (
-              <BarChart data={MONTHLY_GROWTH_DATA} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
+              <BarChart data={data} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
                 <XAxis dataKey="month" stroke="#64748b" tick={{ fontSize: 11, fill: '#94a3b8' }} />
                 <YAxis stroke="#64748b" tick={{ fontSize: 11, fill: '#94a3b8' }} tickFormatter={(v) => `+${(v / 1000).toFixed(0)}k`} />
@@ -167,7 +174,7 @@ export const InteractiveGrowthCharts: React.FC = () => {
                 <Bar dataKey="subscribers_gained" name="Net Subscribers Gained" fill="#f97316" radius={[6, 6, 0, 0]} />
               </BarChart>
             ) : metricMode === 'watch_time' ? (
-              <LineChart data={MONTHLY_GROWTH_DATA} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
+              <LineChart data={data} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
                 <XAxis dataKey="month" stroke="#64748b" tick={{ fontSize: 11, fill: '#94a3b8' }} />
                 <YAxis stroke="#64748b" tick={{ fontSize: 11, fill: '#94a3b8' }} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
@@ -176,7 +183,7 @@ export const InteractiveGrowthCharts: React.FC = () => {
                 <Line type="monotone" dataKey="watch_time_hours" name="Watch Hours" stroke="#10b981" strokeWidth={3} dot={{ r: 4, fill: '#10b981' }} />
               </LineChart>
             ) : (
-              <AreaChart data={MONTHLY_GROWTH_DATA} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
+              <AreaChart data={data} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
                 <defs>
                   <linearGradient id="revenueGrad" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor="#06b6d4" stopOpacity={0.8} />

@@ -1,7 +1,6 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import { UserAccount, DeviceSession, SavedQuery } from '../types/database';
-import { INITIAL_USER_ACCOUNT } from '../data/mockDbmsData';
-import { loginUserApi, signupUserApi, syncDeviceApi } from '../services/api';
+import React, { createContext, useContext, useEffect, useState } from 'react';
+import type { DeviceSession, SavedQuery, UserAccount } from '../types/database';
+import { demoLoginApi, fetchCurrentUser, loginUserApi, logoutUserApi, signupUserApi, syncWorkspaceApi } from '../services/api';
 
 interface AuthAndSyncContextType {
   user: UserAccount | null;
@@ -9,11 +8,13 @@ interface AuthAndSyncContextType {
   isGuest: boolean;
   setGuestMode: (val: boolean) => void;
   isSyncing: boolean;
-  lastSyncTime: Date;
+  lastSyncTime: Date | null;
   syncSuccessMessage: string | null;
-  login: (email: string, role?: string, name?: string) => Promise<boolean>;
-  signup: (name: string, email: string, role?: string) => Promise<boolean>;
-  logout: () => void;
+  syncError: string | null;
+  login: (email: string, password: string) => Promise<boolean>;
+  signup: (name: string, email: string, password: string, role?: string) => Promise<boolean>;
+  demoLogin: (profile: 'owner' | 'architect' | 'editor') => Promise<boolean>;
+  logout: () => Promise<void>;
   forceSyncNow: () => Promise<void>;
   toggleSaveVideo: (videoId: string) => void;
   isVideoSaved: (videoId: string) => boolean;
@@ -21,321 +22,182 @@ interface AuthAndSyncContextType {
   removeComparison: (index: number) => void;
   addCustomQuery: (query: Omit<SavedQuery, 'id' | 'created_at'>) => void;
   updateNotificationSettings: (settings: Partial<UserAccount['notification_settings']>) => void;
-  exportSyncPayload: () => string;
+  exportSyncPayload: () => Promise<string>;
   importSyncPayload: (payloadJson: string) => boolean;
   unlinkDevice: (deviceId: string) => void;
   renameDevice: (deviceId: string, newName: string) => void;
 }
 
-const STORAGE_KEY = 'ashrides26_dbms_user_session';
 const GUEST_KEY = 'ashrides26_guest_mode';
-
 const AuthAndSyncContext = createContext<AuthAndSyncContextType | undefined>(undefined);
 
-export const AuthAndSyncProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<UserAccount | null>(() => {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved) {
-      try {
-        return JSON.parse(saved);
-      } catch (e) {
-        console.error('Error parsing stored session', e);
-      }
-    }
-    return null;
-  });
+function currentDevice(): DeviceSession {
+  const ua = navigator.userAgent;
+  const mobile = /Mobi|Android/i.test(ua);
+  return {
+    id: 'dev_current_browser',
+    device_name: mobile ? 'Current mobile browser' : 'Current desktop browser',
+    device_type: mobile ? 'mobile' : 'desktop',
+    os: /Windows/i.test(ua) ? 'Windows' : /Mac/i.test(ua) ? 'macOS' : /Linux/i.test(ua) ? 'Linux' : /Android/i.test(ua) ? 'Android' : 'Unknown',
+    browser: /Firefox/i.test(ua) ? 'Firefox' : /Edg/i.test(ua) ? 'Edge' : /Chrome/i.test(ua) ? 'Chrome' : /Safari/i.test(ua) ? 'Safari' : 'Unknown',
+    ip_location: 'Not collected',
+    last_synced_at: new Date().toISOString(),
+    is_current: true,
+  };
+}
 
-  const [isGuest, setIsGuest] = useState<boolean>(() => {
-    return localStorage.getItem(GUEST_KEY) === 'true';
-  });
+export const AuthAndSyncProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [user, setUser] = useState<UserAccount | null>(null);
+  const [isGuest, setIsGuest] = useState(() => localStorage.getItem(GUEST_KEY) === 'true');
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [lastSyncTime, setLastSyncTime] = useState<Date | null>(null);
+  const [syncSuccessMessage, setSyncSuccessMessage] = useState<string | null>(null);
+  const [syncError, setSyncError] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetchCurrentUser().then(setUser).catch(() => setUser(null));
+  }, []);
 
   const setGuestMode = (val: boolean) => {
     setIsGuest(val);
-    if (val) {
-      localStorage.setItem(GUEST_KEY, 'true');
-    } else {
-      localStorage.removeItem(GUEST_KEY);
-    }
+    if (val) localStorage.setItem(GUEST_KEY, 'true');
+    else localStorage.removeItem(GUEST_KEY);
   };
 
-  const [isSyncing, setIsSyncing] = useState<boolean>(false);
-  const [lastSyncTime, setLastSyncTime] = useState<Date>(new Date());
-  const [syncSuccessMessage, setSyncSuccessMessage] = useState<string | null>(null);
+  const flashSuccess = (message: string) => {
+    setSyncSuccessMessage(message);
+    window.setTimeout(() => setSyncSuccessMessage(null), 3500);
+  };
 
-  useEffect(() => {
-    if (user) {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(user));
-    } else {
-      localStorage.removeItem(STORAGE_KEY);
-    }
-  }, [user]);
-
-  const login = async (email: string, role: string = 'Channel Owner (Ash)', name?: string): Promise<boolean> => {
+  const login = async (email: string, password: string) => {
     setIsSyncing(true);
-
+    setSyncError(null);
     try {
-      const apiUser = await loginUserApi(email, role, name);
-      if (apiUser) {
-        setUser(apiUser);
-        setLastSyncTime(new Date());
-        setIsSyncing(false);
-        setSyncSuccessMessage('Logged in & synchronized profile with MySQL backend');
-        setTimeout(() => setSyncSuccessMessage(null), 3500);
-        return true;
-      }
-    } catch (e) {
-      console.warn('API login fallback', e);
-    }
-
-    const loggedInUser: UserAccount = {
-      ...INITIAL_USER_ACCOUNT,
-      email,
-      name: name || (email.includes('ash') ? 'Ash (AshRides26)' : email.split('@')[0]),
-      role: role as any,
-      last_login: 'Just now'
-    };
-
-    setUser(loggedInUser);
-    setLastSyncTime(new Date());
-    setIsSyncing(false);
-    setSyncSuccessMessage('Logged in & synchronized profile across devices');
-    setTimeout(() => setSyncSuccessMessage(null), 3500);
-    return true;
+      const { user: account } = await loginUserApi(email, password);
+      setUser(account);
+      setGuestMode(false);
+      setLastSyncTime(new Date());
+      flashSuccess('Signed in securely.');
+      return true;
+    } catch (error: any) {
+      setSyncError(error?.message || 'Login failed');
+      throw error;
+    } finally { setIsSyncing(false); }
   };
 
-  const signup = async (name: string, email: string, role: string = 'Data Analyst'): Promise<boolean> => {
+  const signup = async (name: string, email: string, password: string, role?: string) => {
     setIsSyncing(true);
-
+    setSyncError(null);
     try {
-      const apiUser = await signupUserApi(name, email, role);
-      if (apiUser) {
-        setUser(apiUser);
-        setLastSyncTime(new Date());
-        setIsSyncing(false);
-        setSyncSuccessMessage('Account registered in MySQL! Cross-device sync initialized');
-        setTimeout(() => setSyncSuccessMessage(null), 3500);
-        return true;
-      }
-    } catch (e) {
-      console.warn('API signup fallback', e);
-    }
-
-    const newUser: UserAccount = {
-      id: `usr_${Date.now().toString(36)}`,
-      name,
-      email,
-      role: role as any,
-      avatar: 'https://images.unsplash.com/photo-1558981806-ec527fa84c39?w=150&auto=format&fit=crop&q=80',
-      last_login: 'Just now',
-      created_at: new Date().toISOString().split('T')[0],
-      connected_devices: [
-        {
-          id: `dev_${Date.now()}`,
-          device_name: 'Current Browser Session (Web Client)',
-          device_type: 'desktop',
-          os: 'Web Platform',
-          browser: 'Modern Browser',
-          ip_location: 'Detected IP (US-West)',
-          last_synced_at: 'Just now',
-          is_current: true
-        }
-      ],
-      saved_video_ids: ['ash_vid_01', 'ash_vid_02'],
-      saved_comparisons: [['ash_vid_01', 'ash_vid_02']],
-      custom_queries: INITIAL_USER_ACCOUNT.custom_queries,
-      notification_settings: INITIAL_USER_ACCOUNT.notification_settings
-    };
-
-    setUser(newUser);
-    setLastSyncTime(new Date());
-    setIsSyncing(false);
-    setSyncSuccessMessage('Account created! Initialized cross-device data synchronization');
-    setTimeout(() => setSyncSuccessMessage(null), 3500);
-    return true;
+      const { user: account } = await signupUserApi(name, email, password, role);
+      setUser(account);
+      setGuestMode(false);
+      setLastSyncTime(new Date());
+      flashSuccess('Account created.');
+      return true;
+    } catch (error: any) {
+      setSyncError(error?.message || 'Signup failed');
+      throw error;
+    } finally { setIsSyncing(false); }
   };
 
-  const logout = () => {
+  const demoLogin = async (profile: 'owner' | 'architect' | 'editor') => {
+    setIsSyncing(true);
+    setSyncError(null);
+    try {
+      const { user: account } = await demoLoginApi(profile);
+      setUser(account);
+      setGuestMode(false);
+      flashSuccess('Signed in to the demo workspace.');
+      return true;
+    } catch (error: any) {
+      setSyncError(error?.message || 'Demo login failed');
+      throw error;
+    } finally { setIsSyncing(false); }
+  };
+
+  const logout = async () => {
+    try { await logoutUserApi(); } catch { /* Clear local state even if the network is unavailable. */ }
     setUser(null);
-    setIsGuest(false);
-    localStorage.removeItem(STORAGE_KEY);
-    localStorage.removeItem(GUEST_KEY);
+    setGuestMode(false);
   };
 
   const forceSyncNow = async () => {
     if (!user) return;
     setIsSyncing(true);
-
+    setSyncError(null);
     try {
-      await syncDeviceApi({
-        user_id: user.id,
+      const { user: updated } = await syncWorkspaceApi({
         saved_video_ids: user.saved_video_ids,
         saved_comparisons: user.saved_comparisons,
         custom_queries: user.custom_queries,
         notification_settings: user.notification_settings,
+        device: { ...currentDevice(), last_synced_at: new Date().toISOString() },
       });
-    } catch (e) {
-      console.warn('API sync warning', e);
-    }
-
-    await new Promise((res) => setTimeout(res, 600));
-
-    const updatedDevices = user.connected_devices.map((dev) =>
-      dev.is_current
-        ? { ...dev, last_synced_at: 'Just now' }
-        : dev
-    );
-
-    setUser({
-      ...user,
-      connected_devices: updatedDevices
-    });
-    setLastSyncTime(new Date());
-    setIsSyncing(false);
-    setSyncSuccessMessage(`Synced ${user.saved_video_ids.length} videos & ${user.custom_queries.length} queries to 3 devices`);
-    setTimeout(() => setSyncSuccessMessage(null), 4000);
+      setUser(updated);
+      setLastSyncTime(new Date());
+      flashSuccess(`Saved ${updated.saved_video_ids.length} videos and ${updated.custom_queries.length} queries to your account.`);
+    } catch (error: any) {
+      setSyncError(error?.message || 'Sync failed');
+      throw error;
+    } finally { setIsSyncing(false); }
   };
 
   const toggleSaveVideo = (videoId: string) => {
     if (!user) return;
     const exists = user.saved_video_ids.includes(videoId);
-    const updated = exists
-      ? user.saved_video_ids.filter((id) => id !== videoId)
-      : [...user.saved_video_ids, videoId];
-
-    setUser({
-      ...user,
-      saved_video_ids: updated
-    });
-    setLastSyncTime(new Date());
+    setUser({ ...user, saved_video_ids: exists ? user.saved_video_ids.filter((id) => id !== videoId) : [...user.saved_video_ids, videoId] });
   };
-
-  const isVideoSaved = (videoId: string) => {
-    return user ? user.saved_video_ids.includes(videoId) : false;
-  };
-
-  const saveComparison = (videoIds: string[]) => {
-    if (!user) return;
-    setUser({
-      ...user,
-      saved_comparisons: [...user.saved_comparisons, videoIds]
-    });
-    setLastSyncTime(new Date());
-  };
-
-  const removeComparison = (index: number) => {
-    if (!user) return;
-    const updated = [...user.saved_comparisons];
-    updated.splice(index, 1);
-    setUser({
-      ...user,
-      saved_comparisons: updated
-    });
-  };
-
+  const isVideoSaved = (videoId: string) => Boolean(user?.saved_video_ids.includes(videoId));
+  const saveComparison = (videoIds: string[]) => { if (user) setUser({ ...user, saved_comparisons: [...user.saved_comparisons, videoIds] }); };
+  const removeComparison = (index: number) => { if (user) setUser({ ...user, saved_comparisons: user.saved_comparisons.filter((_, i) => i !== index) }); };
   const addCustomQuery = (query: Omit<SavedQuery, 'id' | 'created_at'>) => {
     if (!user) return;
-    const newQuery: SavedQuery = {
-      ...query,
-      id: `query_${Date.now()}`,
-      created_at: new Date().toISOString().split('T')[0]
-    };
-    setUser({
-      ...user,
-      custom_queries: [newQuery, ...user.custom_queries]
-    });
+    const newQuery: SavedQuery = { ...query, id: `query_${Date.now()}`, created_at: new Date().toISOString().slice(0, 10) };
+    setUser({ ...user, custom_queries: [newQuery, ...user.custom_queries] });
   };
-
   const updateNotificationSettings = (settings: Partial<UserAccount['notification_settings']>) => {
-    if (!user) return;
-    setUser({
-      ...user,
-      notification_settings: {
-        ...user.notification_settings,
-        ...settings
-      }
-    });
+    if (user) setUser({ ...user, notification_settings: { ...user.notification_settings, ...settings } });
   };
 
-  const exportSyncPayload = (): string => {
+  const exportSyncPayload = async (): Promise<string> => {
     if (!user) return '{}';
-    return JSON.stringify(
-      {
-        account_id: user.id,
-        exported_at: new Date().toISOString(),
-        checksum: `SHA256-${Math.random().toString(36).substring(2, 10).toUpperCase()}`,
-        saved_videos: user.saved_video_ids,
-        saved_comparisons: user.saved_comparisons,
-        custom_queries: user.custom_queries,
-        notification_settings: user.notification_settings
-      },
-      null,
-      2
-    );
+    const payload = {
+      version: 1,
+      account_id: user.id,
+      exported_at: new Date().toISOString(),
+      saved_videos: user.saved_video_ids,
+      saved_comparisons: user.saved_comparisons,
+      custom_queries: user.custom_queries,
+      notification_settings: user.notification_settings,
+    };
+    const json = JSON.stringify(payload, null, 2);
+    const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(json));
+    const checksum = Array.from(new Uint8Array(digest)).map((byte) => byte.toString(16).padStart(2, '0')).join('');
+    return JSON.stringify({ ...payload, checksum_sha256: checksum }, null, 2);
   };
 
   const importSyncPayload = (payloadJson: string): boolean => {
     try {
       const parsed = JSON.parse(payloadJson);
-      if (!user) return false;
+      if (!user || !Array.isArray(parsed.saved_videos) || !Array.isArray(parsed.custom_queries)) return false;
       setUser({
         ...user,
-        saved_video_ids: parsed.saved_videos || user.saved_video_ids,
-        saved_comparisons: parsed.saved_comparisons || user.saved_comparisons,
-        custom_queries: parsed.custom_queries || user.custom_queries,
-        notification_settings: parsed.notification_settings || user.notification_settings
+        saved_video_ids: parsed.saved_videos.filter((id: unknown) => typeof id === 'string'),
+        saved_comparisons: Array.isArray(parsed.saved_comparisons) ? parsed.saved_comparisons : user.saved_comparisons,
+        custom_queries: parsed.custom_queries,
+        notification_settings: parsed.notification_settings || user.notification_settings,
       });
-      setLastSyncTime(new Date());
-      setSyncSuccessMessage('Successfully imported & merged device synchronization payload');
-      setTimeout(() => setSyncSuccessMessage(null), 3500);
+      flashSuccess('Workspace imported. Use Force Sync to save it to your account.');
       return true;
-    } catch (e) {
-      console.error('Import error', e);
-      return false;
-    }
+    } catch { return false; }
   };
 
-  const unlinkDevice = (deviceId: string) => {
-    if (!user) return;
-    setUser({
-      ...user,
-      connected_devices: user.connected_devices.filter((d) => d.id !== deviceId)
-    });
-  };
-
-  const renameDevice = (deviceId: string, newName: string) => {
-    if (!user) return;
-    setUser({
-      ...user,
-      connected_devices: user.connected_devices.map((d) => (d.id === deviceId ? { ...d, device_name: newName } : d))
-    });
-  };
+  const unlinkDevice = (deviceId: string) => { if (user) setUser({ ...user, connected_devices: user.connected_devices.filter((device) => device.id !== deviceId) }); };
+  const renameDevice = (deviceId: string, newName: string) => { if (user) setUser({ ...user, connected_devices: user.connected_devices.map((device) => device.id === deviceId ? { ...device, device_name: newName } : device) }); };
 
   return (
-    <AuthAndSyncContext.Provider
-      value={{
-        user,
-        isAuthenticated: !!user,
-        isGuest,
-        setGuestMode,
-        isSyncing,
-        lastSyncTime,
-        syncSuccessMessage,
-        login,
-        signup,
-        logout,
-        forceSyncNow,
-        toggleSaveVideo,
-        isVideoSaved,
-        saveComparison,
-        removeComparison,
-        addCustomQuery,
-        updateNotificationSettings,
-        exportSyncPayload,
-        importSyncPayload,
-        unlinkDevice,
-        renameDevice
-      }}
-    >
+    <AuthAndSyncContext.Provider value={{ user, isAuthenticated: Boolean(user), isGuest, setGuestMode, isSyncing, lastSyncTime, syncSuccessMessage, syncError, login, signup, demoLogin, logout, forceSyncNow, toggleSaveVideo, isVideoSaved, saveComparison, removeComparison, addCustomQuery, updateNotificationSettings, exportSyncPayload, importSyncPayload, unlinkDevice, renameDevice }}>
       {children}
     </AuthAndSyncContext.Provider>
   );
@@ -343,8 +205,6 @@ export const AuthAndSyncProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
 export const useAuthAndSync = () => {
   const context = useContext(AuthAndSyncContext);
-  if (!context) {
-    throw new Error('useAuthAndSync must be used within an AuthAndSyncProvider');
-  }
+  if (!context) throw new Error('useAuthAndSync must be used within an AuthAndSyncProvider');
   return context;
 };

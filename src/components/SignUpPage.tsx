@@ -92,8 +92,8 @@ export const SignUpPage: React.FC<SignUpPageProps> = ({
       setError('Please choose a password.');
       return;
     }
-    if (password.length < 6) {
-      setError('Password should be at least 6 characters.');
+    if (password.length < 8) {
+      setError('Password should be at least 8 characters.');
       return;
     }
     if (password !== confirmPassword) {
@@ -107,7 +107,7 @@ export const SignUpPage: React.FC<SignUpPageProps> = ({
 
     setIsLoading(true);
     try {
-      const success = await signup(name, email, role);
+      const success = await signup(name, email, password, role);
       if (success) {
         triggerRedirect();
       }
@@ -481,7 +481,7 @@ export const SignUpPage: React.FC<SignUpPageProps> = ({
                     <span>Cross-Device State Sync</span>
                   </div>
                   <p className="text-slate-400 text-[11px] leading-relaxed">
-                    Switch seamlessly between workstation, laptop, and mobile devices with encrypted device tokens and instant data synchronization.
+                    Save your workspace to your account and sync it explicitly across browsers.
                   </p>
                 </div>
 

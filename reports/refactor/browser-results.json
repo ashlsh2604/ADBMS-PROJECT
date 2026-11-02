@@ -1,0 +1,61 @@
+{
+  "date": "2026-11-02T09:32:45.604Z",
+  "results": [
+    {
+      "name": "Guest entry from login",
+      "status": "PASS",
+      "url": "http://127.0.0.1:3000/#dashboard"
+    },
+    {
+      "name": "Demo owner dashboard",
+      "status": "PASS",
+      "count": 18
+    },
+    {
+      "name": "Search filter",
+      "status": "PASS"
+    },
+    {
+      "name": "Demo SQL preset returns real count",
+      "status": "PASS"
+    },
+    {
+      "name": "Demo custom SQL is honestly disabled",
+      "status": "PASS"
+    },
+    {
+      "name": "Mobile width",
+      "status": "PASS",
+      "viewport": 390,
+      "document": 390,
+      "logoutRight": 374
+    },
+    {
+      "name": "Signup creates session and reaches dashboard",
+      "status": "PASS",
+      "url": "http://127.0.0.1:3000/#dashboard"
+    },
+    {
+      "name": "JavaScript runtime exceptions",
+      "status": "PASS",
+      "errors": []
+    },
+    {
+      "name": "Server-backed simulated alert",
+      "status": "PASS",
+      "alertCount": 6
+    },
+    {
+      "name": "Mobile width after latest changes",
+      "status": "PASS",
+      "viewport": 390,
+      "document": 390
+    },
+    {
+      "name": "JavaScript runtime exceptions",
+      "status": "PASS",
+      "errors": []
+    }
+  ],
+  "errors": []
+}

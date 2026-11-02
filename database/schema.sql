@@ -1,18 +1,6 @@
--- =====================================================================
--- AshRides26 Advanced DBMS Project - MySQL 8.0 Relational Schema
--- YouTube Video Performance & Motovlogging Telemetry Analytics Engine
--- Normalized 3NF Schema with Fact & Dimension Tables, Indexes & Views
--- =====================================================================
+-- AshRides26 DBMS schema. The application creates/selects the configured database
+-- before running this script, so no database name is hardcoded here.
 
-CREATE DATABASE IF NOT EXISTS ashrides26_db
-  CHARACTER SET utf8mb4
-  COLLATE utf8mb4_unicode_ci;
-
-USE ashrides26_db;
-
--- ---------------------------------------------------------------------
--- Table 1: dim_channels (Dimension: YouTube Motovlogging Channels)
--- ---------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS dim_channels (
   channel_id VARCHAR(64) PRIMARY KEY,
   name VARCHAR(128) NOT NULL,
@@ -31,14 +19,10 @@ CREATE TABLE IF NOT EXISTS dim_channels (
   avg_views_per_video BIGINT UNSIGNED DEFAULT 0,
   sub_growth_monthly_pct DECIMAL(5,2) DEFAULT 0.00,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  INDEX idx_channels_handle (handle),
   INDEX idx_channels_subs (subscribers DESC),
   INDEX idx_channels_is_primary (is_primary)
 ) ENGINE=InnoDB;
 
--- ---------------------------------------------------------------------
--- Table 2: fact_video_metrics (Fact: Motovlog Videos & Telemetry KPIs)
--- ---------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS fact_video_metrics (
   video_id VARCHAR(64) PRIMARY KEY,
   channel_id VARCHAR(64) NOT NULL,
@@ -62,11 +46,9 @@ CREATE TABLE IF NOT EXISTS fact_video_metrics (
   trending_score INT UNSIGNED DEFAULT 0,
   audio_sound_profile VARCHAR(128),
   top_demographic VARCHAR(128),
+  youtube_url VARCHAR(512),
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  CONSTRAINT fk_videos_channel FOREIGN KEY (channel_id)
-    REFERENCES dim_channels(channel_id)
-    ON DELETE CASCADE
-    ON UPDATE CASCADE,
+  CONSTRAINT fk_videos_channel FOREIGN KEY (channel_id) REFERENCES dim_channels(channel_id) ON DELETE CASCADE ON UPDATE CASCADE,
   INDEX idx_videos_category (category),
   INDEX idx_videos_upload_date (upload_date DESC),
   INDEX idx_videos_views (views DESC),
@@ -78,9 +60,6 @@ CREATE TABLE IF NOT EXISTS fact_video_metrics (
   INDEX idx_composite_cat_retention (category, retention_pct DESC)
 ) ENGINE=InnoDB;
 
--- ---------------------------------------------------------------------
--- Table 3: fact_video_retention (Granular Second-by-Second Retention Curve)
--- ---------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS fact_video_retention (
   id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   video_id VARCHAR(64) NOT NULL,
@@ -90,17 +69,11 @@ CREATE TABLE IF NOT EXISTS fact_video_retention (
   is_drop_point BOOLEAN DEFAULT FALSE,
   is_spike_point BOOLEAN DEFAULT FALSE,
   editorial_note VARCHAR(255),
-  CONSTRAINT fk_retention_video FOREIGN KEY (video_id)
-    REFERENCES fact_video_metrics(video_id)
-    ON DELETE CASCADE
-    ON UPDATE CASCADE,
-  INDEX idx_retention_video_second (video_id, second_mark),
+  CONSTRAINT fk_retention_video FOREIGN KEY (video_id) REFERENCES fact_video_metrics(video_id) ON DELETE CASCADE ON UPDATE CASCADE,
+  UNIQUE KEY uq_video_second (video_id, second_mark),
   INDEX idx_retention_spikes (video_id, is_spike_point)
 ) ENGINE=InnoDB;
 
--- ---------------------------------------------------------------------
--- Table 4: fact_monthly_growth (Aggregated Monthly Channel Growth)
--- ---------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS fact_monthly_growth (
   id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   channel_id VARCHAR(64) NOT NULL,
@@ -114,16 +87,11 @@ CREATE TABLE IF NOT EXISTS fact_monthly_growth (
   vlog_views BIGINT UNSIGNED DEFAULT 0,
   shorts_views BIGINT UNSIGNED DEFAULT 0,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  CONSTRAINT fk_growth_channel FOREIGN KEY (channel_id)
-    REFERENCES dim_channels(channel_id)
-    ON DELETE CASCADE,
+  CONSTRAINT fk_growth_channel FOREIGN KEY (channel_id) REFERENCES dim_channels(channel_id) ON DELETE CASCADE,
   UNIQUE KEY uq_channel_month_year (channel_id, year_num, month_name),
   INDEX idx_growth_year_month (year_num, month_name)
 ) ENGINE=InnoDB;
 
--- ---------------------------------------------------------------------
--- Table 5: dim_trending_alerts (Real-Time Trend Surge Alerts)
--- ---------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS dim_trending_alerts (
   alert_id VARCHAR(64) PRIMARY KEY,
   video_id VARCHAR(64) NULL,
@@ -142,24 +110,28 @@ CREATE TABLE IF NOT EXISTS dim_trending_alerts (
   INDEX idx_alerts_created_at (created_at DESC)
 ) ENGINE=InnoDB;
 
--- ---------------------------------------------------------------------
--- Table 6: dim_users (Personalized Accounts & Security)
--- ---------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS dim_users (
   user_id VARCHAR(64) PRIMARY KEY,
   name VARCHAR(128) NOT NULL,
   email VARCHAR(128) NOT NULL UNIQUE,
-  password_hash VARCHAR(255) DEFAULT 'pbkdf2_sha256$e10adc3949ba59abbe56e057f20f883e',
-  role VARCHAR(64) DEFAULT 'Channel Owner (Ash)',
+  password_hash VARCHAR(255) NULL,
+  role VARCHAR(64) DEFAULT 'Data Analyst',
   avatar_url VARCHAR(512),
   last_login VARCHAR(64),
   settings_json JSON,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB;
 
--- ---------------------------------------------------------------------
--- Table 7: user_device_sessions (Cross-Device Data Synchronization)
--- ---------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS auth_sessions (
+  session_hash CHAR(64) PRIMARY KEY,
+  user_id VARCHAR(64) NOT NULL,
+  expires_at DATETIME NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT fk_sessions_user FOREIGN KEY (user_id) REFERENCES dim_users(user_id) ON DELETE CASCADE,
+  INDEX idx_sessions_expiry (expires_at),
+  INDEX idx_sessions_user (user_id)
+) ENGINE=InnoDB;
+
 CREATE TABLE IF NOT EXISTS user_device_sessions (
   session_id VARCHAR(64) PRIMARY KEY,
   user_id VARCHAR(64) NOT NULL,
@@ -171,15 +143,10 @@ CREATE TABLE IF NOT EXISTS user_device_sessions (
   battery_level INT NULL,
   is_current BOOLEAN DEFAULT FALSE,
   last_synced_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  CONSTRAINT fk_sessions_user FOREIGN KEY (user_id)
-    REFERENCES dim_users(user_id)
-    ON DELETE CASCADE,
-  INDEX idx_sessions_user (user_id)
+  CONSTRAINT fk_devices_user FOREIGN KEY (user_id) REFERENCES dim_users(user_id) ON DELETE CASCADE,
+  INDEX idx_devices_user (user_id)
 ) ENGINE=InnoDB;
 
--- ---------------------------------------------------------------------
--- Table 8: user_saved_queries (DBMS Workbench Saved SQL Queries)
--- ---------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS user_saved_queries (
   query_id VARCHAR(64) PRIMARY KEY,
   user_id VARCHAR(64) NOT NULL,
@@ -188,16 +155,30 @@ CREATE TABLE IF NOT EXISTS user_saved_queries (
   sql_query TEXT NOT NULL,
   category VARCHAR(64) DEFAULT 'Analytics',
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  CONSTRAINT fk_queries_user FOREIGN KEY (user_id)
-    REFERENCES dim_users(user_id)
-    ON DELETE CASCADE
+  CONSTRAINT fk_queries_user FOREIGN KEY (user_id) REFERENCES dim_users(user_id) ON DELETE CASCADE,
+  INDEX idx_queries_user (user_id)
 ) ENGINE=InnoDB;
 
--- ---------------------------------------------------------------------
--- Advanced DBMS Analytical Views
--- ---------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS user_saved_videos (
+  user_id VARCHAR(64) NOT NULL,
+  video_id VARCHAR(64) NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (user_id, video_id),
+  CONSTRAINT fk_saved_videos_user FOREIGN KEY (user_id) REFERENCES dim_users(user_id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS user_saved_comparisons (
+  comparison_id VARCHAR(64) PRIMARY KEY,
+  user_id VARCHAR(64) NOT NULL,
+  video_ids_json JSON NOT NULL,
+  position INT UNSIGNED NOT NULL DEFAULT 0,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT fk_comparisons_user FOREIGN KEY (user_id) REFERENCES dim_users(user_id) ON DELETE CASCADE,
+  INDEX idx_comparisons_user (user_id, position)
+) ENGINE=InnoDB;
+
 CREATE OR REPLACE VIEW v_category_performance_summary AS
-SELECT 
+SELECT
   v.category,
   COUNT(v.video_id) AS total_videos,
   ROUND(AVG(v.retention_pct), 2) AS avg_retention_pct,
@@ -214,7 +195,7 @@ WHERE c.is_primary = TRUE
 GROUP BY v.category;
 
 CREATE OR REPLACE VIEW v_channel_benchmarks AS
-SELECT 
+SELECT
   c.channel_id,
   c.name AS channel_name,
   c.handle,
@@ -230,5 +211,5 @@ SELECT
   MAX(v.views) AS highest_view_video
 FROM dim_channels c
 LEFT JOIN fact_video_metrics v ON c.channel_id = v.channel_id
-GROUP BY c.channel_id, c.name, c.handle, c.subscribers, c.total_views, c.total_videos, 
+GROUP BY c.channel_id, c.name, c.handle, c.subscribers, c.total_views, c.total_videos,
          c.avg_views_per_video, c.sub_growth_monthly_pct, c.primary_bike, c.is_primary;
