@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
+import { fetchDbStatus } from '../services/api';
 import { useAuthAndSync } from '../context/AuthAndSyncContext';
 import { useNotifications } from '../context/NotificationContext';
 import { 
@@ -31,6 +32,8 @@ export const Navbar: React.FC<NavbarProps> = ({
 }) => {
   const { user, isAuthenticated, isGuest, logout, isSyncing, lastSyncTime } = useAuthAndSync();
   const { unreadCount } = useNotifications();
+  const [dbConnected, setDbConnected] = useState<boolean | null>(null);
+  useEffect(() => { fetchDbStatus().then((status) => setDbConnected(status.connected)).catch(() => setDbConnected(false)); }, []);
 
   const handleLogoutAction = () => {
     if (onLogout) {
@@ -44,7 +47,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   return (
     <header className="sticky top-0 z-40 bg-[#090d16]/95 border-b border-slate-800/90 backdrop-blur-xl" id="main-navigation-bar">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16 gap-4">
+        <div className="flex items-center justify-between h-16 gap-2">
           {/* Brand & Channel Identity */}
           <div className="flex items-center gap-3 sm:gap-4 flex-shrink-0">
             <button
@@ -65,7 +68,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                     DBMS
                   </span>
                 </div>
-                <div className="flex items-center gap-2 text-[11px] text-slate-400 font-mono">
+                <div className="hidden sm:flex items-center gap-2 text-[11px] text-slate-400 font-mono">
                   <span>342.8K Subs</span>
                   <span>•</span>
                   <span className="text-emerald-400">48.9M Views</span>
@@ -143,28 +146,28 @@ export const Navbar: React.FC<NavbarProps> = ({
           </nav>
 
           {/* Right Action Cluster */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1 sm:gap-2 shrink-0">
             {/* MySQL Database Engine Indicator */}
             <button
               onClick={() => setActiveTab('dbms')}
               className="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-cyan-950/40 hover:bg-cyan-900/40 border border-cyan-500/30 text-xs font-mono text-cyan-300 transition"
-              title="MySQL 8.0 Relational Engine Online - Open DBMS Workbench"
+              title={dbConnected ? "Live MySQL connection" : "Demo mode or MySQL unavailable"}
               id="nav-mysql-status-btn"
             >
-              <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
-              <span>MySQL 8.0</span>
+              <span className={`w-2 h-2 rounded-full ${dbConnected ? "bg-emerald-400" : "bg-amber-400"}`} />
+              <span>{dbConnected ? "MySQL live" : "Demo / offline"}</span>
             </button>
 
             {/* Cross-Device Sync Status Button */}
             <button
               onClick={onOpenSync}
-              className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-slate-900/80 hover:bg-slate-800 border border-slate-800 text-xs font-mono text-slate-300 transition"
+              className="flex items-center gap-2 p-1.5 sm:px-2.5 sm:py-1.5 rounded-lg bg-slate-900/80 hover:bg-slate-800 border border-slate-800 text-xs font-mono text-slate-300 transition"
               title="Cross-Device Sync Manager"
               id="nav-sync-btn"
             >
               <span className={`w-2 h-2 rounded-full ${isSyncing ? 'bg-amber-400 animate-spin' : 'bg-emerald-400 animate-pulse'}`} />
               <span className="hidden sm:inline">
-                {isSyncing ? 'Syncing...' : `${user?.connected_devices?.length || 3} Devices`}
+                {isSyncing ? 'Syncing...' : `${user?.connected_devices?.length || 0} Devices`}
               </span>
               <RefreshCw className={`w-3.5 h-3.5 text-slate-400 ${isSyncing ? 'animate-spin' : ''}`} />
             </button>
@@ -172,7 +175,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             {/* Trending Push Alert Bell */}
             <button
               onClick={onOpenAlerts}
-              className="relative p-2 rounded-lg bg-slate-900/80 hover:bg-slate-800 border border-slate-800 text-slate-300 hover:text-orange-400 transition"
+              className="relative p-1.5 sm:p-2 rounded-lg bg-slate-900/80 hover:bg-slate-800 border border-slate-800 text-slate-300 hover:text-orange-400 transition"
               title="Trending Alerts & Push Notifications"
               id="nav-alerts-btn"
             >
@@ -189,7 +192,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               <div className="flex items-center gap-1.5">
                 <button
                   onClick={onOpenAuth}
-                  className="flex items-center gap-2 pl-2 pr-3 py-1 bg-slate-900/90 hover:bg-slate-800 border border-slate-800 rounded-xl transition group"
+                  className="flex items-center gap-2 pl-1.5 pr-1.5 sm:pl-2 sm:pr-3 py-1 bg-slate-900/90 hover:bg-slate-800 border border-slate-800 rounded-xl transition group"
                   id="nav-user-profile-btn"
                   title="View Profile & Notification Settings"
                 >

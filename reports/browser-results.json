@@ -1,0 +1,201 @@
+{
+  "date": "2026-11-02T08:47:12.318Z",
+  "mode": "production build, MySQL unavailable",
+  "results": [
+    {
+      "name": "Guest entry trial 1",
+      "status": "FAIL",
+      "url": "http://127.0.0.1:3000/#login",
+      "loginVisible": true,
+      "guestStored": null
+    },
+    {
+      "name": "Guest entry trial 2",
+      "status": "FAIL",
+      "url": "http://127.0.0.1:3000/#login",
+      "loginVisible": true,
+      "guestStored": null
+    },
+    {
+      "name": "Guest entry trial 3",
+      "status": "FAIL",
+      "url": "http://127.0.0.1:3000/#login",
+      "loginVisible": true,
+      "guestStored": null
+    },
+    {
+      "name": "Demo owner login",
+      "status": "PASS",
+      "url": "http://127.0.0.1:3000/#dashboard"
+    },
+    {
+      "name": "Dashboard video rendering",
+      "status": "PASS",
+      "count": 18
+    },
+    {
+      "name": "UI search",
+      "status": "PASS",
+      "matchCount": 5
+    },
+    {
+      "name": "UI empty search",
+      "status": "PASS"
+    },
+    {
+      "name": "UI shorts filter",
+      "status": "PASS",
+      "count": 5
+    },
+    {
+      "name": "UI table view",
+      "status": "PASS"
+    },
+    {
+      "name": "Video detail modal",
+      "status": "PASS"
+    },
+    {
+      "name": "Growth charts render",
+      "status": "PASS",
+      "charts": 3
+    },
+    {
+      "name": "Comparison view",
+      "status": "PASS",
+      "url": "http://127.0.0.1:3000/#compare"
+    },
+    {
+      "name": "Channel view",
+      "status": "PASS",
+      "url": "http://127.0.0.1:3000/#channels"
+    },
+    {
+      "name": "SQL workbench renders",
+      "status": "PASS"
+    },
+    {
+      "name": "UI rejects invalid SQL",
+      "status": "FAIL",
+      "observed": "Nonexistent table returns 10 successful video rows"
+    },
+    {
+      "name": "MySQL connection test reports failure",
+      "status": "PASS",
+      "observed": "ECONNREFUSED 127.0.0.1:3306"
+    },
+    {
+      "name": "Mobile width",
+      "status": "FAIL",
+      "viewport": 390,
+      "document": 428,
+      "elements": [
+        {
+          "tag": "DIV",
+          "id": "",
+          "classes": "flex items-center gap-2",
+          "right": 428.34375,
+          "width": 182
+        },
+        {
+          "tag": "DIV",
+          "id": "",
+          "classes": "flex items-center gap-1.5",
+          "right": 428.34375,
+          "width": 80
+        },
+        {
+          "tag": "BUTTON",
+          "id": "nav-user-profile-btn",
+          "classes": "flex items-center gap-2 pl-2 pr-3 py-1 bg-slate-900/90 hover:bg-slate-800 border border-slate-800 rounded-xl transition group",
+          "right": 394.34375,
+          "width": 46
+        },
+        {
+          "tag": "BUTTON",
+          "id": "nav-logout-btn",
+          "classes": "p-1.5 rounded-lg text-slate-400 hover:text-red-400 hover:bg-slate-800/80 transition",
+          "right": 428.34375,
+          "width": 28
+        },
+        {
+          "tag": "svg",
+          "id": "",
+          "classes": "",
+          "right": 422.34375,
+          "width": 16
+        },
+        {
+          "tag": "path",
+          "id": "",
+          "classes": "",
+          "right": 420.34375,
+          "width": 3.333343505859375
+        },
+        {
+          "tag": "path",
+          "id": "",
+          "classes": "",
+          "right": 420.34375,
+          "width": 8
+        },
+        {
+          "tag": "path",
+          "id": "",
+          "classes": "",
+          "right": 412.34375,
+          "width": 4
+        },
+        {
+          "tag": "BUTTON",
+          "id": "filter-cat-vlog",
+          "classes": "flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition whitespace-nowrap bg-slate-900/80 text-slate-400 hover:text-slate-200 hover:bg-slate-800 border border-slate-800",
+          "right": 415.453125,
+          "width": 116.078125
+        },
+        {
+          "tag": "SPAN",
+          "id": "",
+          "classes": "",
+          "right": 402.453125,
+          "width": 70.078125
+        },
+        {
+          "tag": "BUTTON",
+          "id": "filter-cat-shorts",
+          "classes": "flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition whitespace-nowrap bg-slate-900/80 text-slate-400 hover:text-slate-200 hover:bg-slate-800 border border-slate-800",
+          "right": 600.859375,
+          "width": 179.40625
+        },
+        {
+          "tag": "svg",
+          "id": "",
+          "classes": "",
+          "right": 448.453125,
+          "width": 14
+        },
+        {
+          "tag": "path",
+          "id": "",
+          "classes": "",
+          "right": 446.7051086425781,
+          "width": 10.50396728515625
+        },
+        {
+          "tag": "SPAN",
+          "id": "",
+          "classes": "",
+          "right": 587.859375,
+          "width": 133.40625
+        }
+      ]
+    },
+    {
+      "name": "JavaScript runtime exceptions",
+      "status": "PASS",
+      "errors": []
+    }
+  ],
+  "runtimeErrors": [],
+  "externalResourceNote": "Unsplash and Google Fonts requests are blocked by sandbox egress; image/font failures are not counted as application defects."
+}

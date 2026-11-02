@@ -219,7 +219,7 @@ export const TrendingAlertsDrawer: React.FC<TrendingAlertsDrawerProps> = ({
               onClick={() => triggerSimulatedAlert()}
               className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white shadow-sm transition"
               id="simulate-alert-btn"
-              title="Simulate a real-time viral velocity trigger"
+              title="Create a simulated alert through the API"
             >
               <Sparkles className="w-3.5 h-3.5" />
               <span>Simulate Alert</span>

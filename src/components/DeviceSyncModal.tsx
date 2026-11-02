@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useAuthAndSync } from '../context/AuthAndSyncContext';
-import { 
-  Laptop, Smartphone, HardDrive, RefreshCw, CheckCircle2, ShieldCheck, 
+import {
+  Laptop, Smartphone, HardDrive, RefreshCw, CheckCircle2, ShieldCheck,
   Download, Upload, X, Copy, Check, Trash2, Edit2, Sparkles, Activity
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
@@ -12,16 +12,16 @@ interface DeviceSyncModalProps {
 }
 
 export const DeviceSyncModal: React.FC<DeviceSyncModalProps> = ({ isOpen, onClose }) => {
-  const { 
-    user, 
-    isSyncing, 
-    lastSyncTime, 
-    syncSuccessMessage, 
-    forceSyncNow, 
-    exportSyncPayload, 
-    importSyncPayload, 
+  const {
+    user,
+    isSyncing,
+    lastSyncTime,
+    syncSuccessMessage,
+    forceSyncNow,
+    exportSyncPayload, syncError,
+    importSyncPayload,
     unlinkDevice,
-    renameDevice 
+    renameDevice
   } = useAuthAndSync();
 
   const [activeTab, setActiveTab] = useState<'devices' | 'backup'>('devices');
@@ -34,7 +34,7 @@ export const DeviceSyncModal: React.FC<DeviceSyncModalProps> = ({ isOpen, onClos
   if (!isOpen || !user) return null;
 
   const handleForceSync = async () => {
-    await forceSyncNow();
+    try { await forceSyncNow(); } catch { /* syncError is exposed by context */ }
     confetti({
       particleCount: 35,
       spread: 50,
@@ -42,8 +42,8 @@ export const DeviceSyncModal: React.FC<DeviceSyncModalProps> = ({ isOpen, onClos
     });
   };
 
-  const handleCopyPayload = () => {
-    const payload = exportSyncPayload();
+  const handleCopyPayload = async () => {
+    const payload = await exportSyncPayload();
     navigator.clipboard.writeText(payload);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
@@ -77,7 +77,7 @@ export const DeviceSyncModal: React.FC<DeviceSyncModalProps> = ({ isOpen, onClos
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto flex items-center justify-center p-4" id="device-sync-modal-root">
       {/* Backdrop */}
-      <div 
+      <div
         className="fixed inset-0 bg-black/80 backdrop-blur-md transition-opacity"
         onClick={onClose}
       />
@@ -118,6 +118,7 @@ export const DeviceSyncModal: React.FC<DeviceSyncModalProps> = ({ isOpen, onClos
             </button>
           </div>
 
+          {syncError && <div className="mb-4 rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-xs text-red-300">{syncError}</div>}
           {/* Sync status summary card */}
           <div className="p-4 rounded-xl bg-slate-900/80 border border-slate-800 flex items-center justify-between gap-4 mb-6 flex-wrap">
             <div className="flex items-center gap-3">

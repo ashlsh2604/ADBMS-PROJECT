@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
-import { FilterState, VideoCategory } from '../types/database';
-import { CHANNELS } from '../data/mockDbmsData';
+import React, { useEffect, useState } from 'react';
+import { Channel, FilterState, VideoCategory } from '../types/database';
+import { fetchChannels } from '../services/api';
 import { 
   Search, SlidersHorizontal, ArrowUpDown, Calendar, 
   Bike, Video as VideoIcon, Zap, LayoutGrid, Table2, Globe2, X, Sparkles 
@@ -26,6 +26,15 @@ export const SearchAndFilterBar: React.FC<SearchAndFilterBarProps> = ({
   onSelectChannel
 }) => {
   const [showBikeFilter, setShowBikeFilter] = useState(false);
+  const [channels, setChannels] = useState<Channel[]>([]);
+
+  useEffect(() => {
+    let active = true;
+    fetchChannels()
+      .then((rows) => { if (active) setChannels(rows); })
+      .catch(() => { if (active) setChannels([]); });
+    return () => { active = false; };
+  }, []);
   const [showChannelDropdown, setShowChannelDropdown] = useState(false);
 
   const bikePresets = [
@@ -41,7 +50,7 @@ export const SearchAndFilterBar: React.FC<SearchAndFilterBarProps> = ({
 
   // Channel search matching
   const matchingChannels = filter.searchQuery.trim().length >= 2
-    ? CHANNELS.filter((c) =>
+    ? channels.filter((c) =>
         c.name.toLowerCase().includes(filter.searchQuery.toLowerCase()) ||
         c.handle.toLowerCase().includes(filter.searchQuery.toLowerCase()) ||
         c.primary_bike.toLowerCase().includes(filter.searchQuery.toLowerCase())

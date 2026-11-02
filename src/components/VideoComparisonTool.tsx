@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import { fetchVideos } from '../services/api';
 import { Video } from '../types/database';
-import { VIDEOS } from '../data/mockDbmsData';
 import { useAuthAndSync } from '../context/AuthAndSyncContext';
 import { 
   Layers, Plus, Trash2, Trophy, BarChart3, TrendingUp, 
@@ -25,9 +25,11 @@ export const VideoComparisonTool: React.FC<VideoComparisonToolProps> = ({
   const [selectedIds, setSelectedIds] = useState<string[]>(initialVideoIds);
   const [savedStatus, setSavedStatus] = useState<boolean>(false);
   const [showSqlQuery, setShowSqlQuery] = useState<boolean>(false);
+  const [allVideos, setAllVideos] = useState<Video[]>([]);
+  useEffect(() => { fetchVideos().then(setAllVideos).catch(() => setAllVideos([])); }, []);
 
   const selectedVideos: Video[] = selectedIds
-    .map((id) => VIDEOS.find((v) => v.video_id === id))
+    .map((id) => allVideos.find((v) => v.video_id === id))
     .filter(Boolean) as Video[];
 
   const handleAddVideo = (videoId: string) => {
@@ -177,7 +179,7 @@ ORDER BY v.views DESC;`;
         {/* Video Selector Row */}
         <div className="flex items-center gap-2 overflow-x-auto pb-2">
           <span className="text-xs font-mono text-slate-400 flex-shrink-0">Add to Compare:</span>
-          {VIDEOS.filter((v) => !selectedIds.includes(v.video_id)).map((v) => (
+          {allVideos.filter((v) => !selectedIds.includes(v.video_id)).map((v) => (
             <button
               key={v.video_id}
               onClick={() => handleAddVideo(v.video_id)}

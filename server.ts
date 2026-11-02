@@ -1,48 +1,45 @@
+import path from 'node:path';
 import express from 'express';
-import path from 'path';
 import dotenv from 'dotenv';
 import { createServer as createViteServer } from 'vite';
-import { apiRouter } from './server/api.js';
-import { initDatabase } from './server/db/mysql.js';
+import { loadConfig } from './server/config.js';
+import { createApp } from './server/app.js';
+import { createDemoStore } from './server/stores/demoStore.js';
+import { createMySqlStore } from './server/db/init.js';
 
-dotenv.config();
+dotenv.config({ quiet: true });
 
 async function startServer() {
-  const app = express();
-  const PORT = 3000;
+  const config = loadConfig();
+  const store = config.demoMode ? await createDemoStore() : await createMySqlStore(config);
+  const app = createApp(store, config);
 
-  // Body parser middleware
-  app.use(express.json());
-  app.use(express.urlencoded({ extended: true }));
-
-  // Initialize MySQL connection and migrations
-  try {
-    await initDatabase();
-  } catch (err) {
-    console.warn('[MySQL Initialization Warning]', err);
-  }
-
-  // Mount API routes FIRST before Vite or static files
-  app.use('/api', apiRouter);
-
-  // Vite middleware for development vs static build for production
-  if (process.env.NODE_ENV !== 'production') {
-    const vite = await createViteServer({
-      server: { middlewareMode: true },
-      appType: 'spa',
-    });
+  if (!config.isProduction) {
+    const vite = await createViteServer({ server: { middlewareMode: true }, appType: 'spa' });
     app.use(vite.middlewares);
   } else {
     const distPath = path.join(process.cwd(), 'dist');
     app.use(express.static(distPath));
-    app.get('*', (req, res) => {
-      res.sendFile(path.join(distPath, 'index.html'));
-    });
+    app.get('*', (req, res) => res.sendFile(path.join(distPath, 'index.html')));
   }
 
-  app.listen(PORT, '0.0.0.0', () => {
-    console.log(`[AshRides26 DBMS Server] Running on http://0.0.0.0:${PORT}`);
+  const server = app.listen(config.port, '0.0.0.0', () => {
+    console.log(`[AshRides26] ${config.demoMode ? 'DEMO MODE (in-memory, not MySQL)' : 'MYSQL MODE'} listening on http://0.0.0.0:${config.port}`);
   });
+
+  const shutdown = async () => {
+    server.close();
+    await store.close();
+    process.exit(0);
+  };
+  process.on('SIGTERM', shutdown);
+  process.on('SIGINT', shutdown);
 }
 
-startServer();
+startServer().catch((error) => {
+  console.error('[AshRides26] Startup failed:', error instanceof Error ? error.message : error);
+  if (!process.env.DEMO_MODE && process.env.NODE_ENV === 'production') {
+    console.error('To explore without MySQL, run: npm run start:demo');
+  }
+  process.exit(1);
+});
