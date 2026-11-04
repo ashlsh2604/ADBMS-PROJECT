@@ -168,12 +168,38 @@ export async function triggerNewAlertApi(alert: TrendingAlert): Promise<Trending
 // ==========================================
 // DBMS SQL Workbench API
 // ==========================================
+export interface BackendQueryDef {
+  id: string;
+  name: string;
+  category: string;
+  description: string;
+  sql: string;
+  indexesUsed: string[];
+}
+
+export async function fetchBackendQueriesList(): Promise<BackendQueryDef[]> {
+  try {
+    const res = await fetchJson<{ total: number; queries: BackendQueryDef[] }>(`${API_BASE}/queries`);
+    return res.queries;
+  } catch {
+    return [];
+  }
+}
+
+export async function runBackendQueryApi(queryId?: string, sql?: string): Promise<DbmsQueryResult> {
+  return fetchJson<DbmsQueryResult>(`${API_BASE}/queries/run`, {
+    method: 'POST',
+    body: JSON.stringify({ queryId, sql }),
+  });
+}
+
 export async function executeDbQuery(sql: string): Promise<DbmsQueryResult> {
   return fetchJson<DbmsQueryResult>(`${API_BASE}/db/query`, {
     method: 'POST',
     body: JSON.stringify({ sql }),
   });
 }
+
 
 export async function fetchDbStatus(): Promise<DbStatusInfo> {
   return fetchJson<DbStatusInfo>(`${API_BASE}/db/status`, undefined, {
@@ -271,3 +297,61 @@ export async function syncDeviceApi(deviceSession: any): Promise<UserAccount> {
   );
   return result.user;
 }
+
+// ==========================================
+// ADBMS 4-Phase Client APIs
+// ==========================================
+
+export async function fetchAdbmsSummary(): Promise<any> {
+  return fetchJson<any>(`${API_BASE}/adbms/summary`);
+}
+
+export async function fetchAdbmsEntities(): Promise<any> {
+  return fetchJson<any>(`${API_BASE}/adbms/entities`);
+}
+
+export async function fetchAdbmsRelationships(): Promise<any> {
+  return fetchJson<any>(`${API_BASE}/adbms/relationships`);
+}
+
+export async function fetchAdbmsNormalization(): Promise<any> {
+  return fetchJson<any>(`${API_BASE}/adbms/normalization`);
+}
+
+export async function fetchAdbmsQueries(): Promise<any> {
+  return fetchJson<any>(`${API_BASE}/adbms/queries`);
+}
+
+export async function fetchAdbmsProcedures(): Promise<any> {
+  return fetchJson<any>(`${API_BASE}/adbms/procedures`);
+}
+
+export async function callAdbmsProcedureApi(procedure: string, parameters?: Record<string, any>): Promise<any> {
+  return fetchJson<any>(`${API_BASE}/adbms/procedures/call`, {
+    method: 'POST',
+    body: JSON.stringify({ procedure, parameters: parameters || {} })
+  });
+}
+
+export async function simulateAdbmsTransactionApi(
+  scenario: 'commit' | 'rollback_to_savepoint' | 'full_rollback' = 'commit',
+  videoId?: string,
+  addedViews?: number
+): Promise<any> {
+  return fetchJson<any>(`${API_BASE}/adbms/transaction/simulate`, {
+    method: 'POST',
+    body: JSON.stringify({ scenario, videoId, addedViews })
+  });
+}
+
+export async function validateAdbmsRecordApi(table: string, record: Record<string, any>): Promise<any> {
+  return fetchJson<any>(`${API_BASE}/adbms/validate`, {
+    method: 'POST',
+    body: JSON.stringify({ table, record })
+  });
+}
+
+export async function fetchAdbmsTelemetry(): Promise<any[]> {
+  return fetchJson<any[]>(`${API_BASE}/adbms/telemetry`);
+}
+

@@ -3,6 +3,32 @@ import fs from 'fs';
 import path from 'path';
 import { CHANNELS, VIDEOS, MONTHLY_GROWTH_DATA, INITIAL_TRENDING_ALERTS, INITIAL_USER_ACCOUNT, DBMS_SCHEMA } from '../../src/data/mockDbmsData.js';
 import { Video, Channel, MonthlyGrowth, TrendingAlert, DbmsQueryResult, FilterState } from '../../src/types/database.js';
+import {
+  BACKEND_QUERIES,
+  BackendQueryDefinition,
+  getBackendQueryById,
+  SQL_CATEGORY_PERFORMANCE,
+  SQL_VELOCITY_SURGE_RANKING,
+  SQL_RETENTION_AUDIT,
+  SQL_BIKE_MODEL_COMPARISON,
+  SQL_MONTHLY_GROWTH_TIMESERIES,
+  SQL_CHANNEL_BENCHMARKS,
+  SQL_ACTIVE_ALERTS,
+  SQL_ADVENTURE_TOUR_DEEPDIVE,
+  SQL_CTR_RETENTION_QUADRANT
+} from './queries.js';
+import {
+  ADBMS_ENTITIES,
+  ADBMS_RELATIONSHIPS,
+  ADBMS_NORMALIZATION_STEPS,
+  ADBMS_QUERIES,
+  ADBMS_PROCEDURES,
+  AdbmsEntity,
+  AdbmsRelationship,
+  AdbmsNormalizationStep,
+  AdbmsQueryItem,
+  AdbmsProcedureDef
+} from './adbms.js';
 
 export interface DbStatus {
   connected: boolean;
@@ -26,12 +52,99 @@ let totalQueries = 0;
 const serverStartTime = Date.now();
 let lastError: string | null = null;
 
+// Initial Bike Telemetry Dataset
+export const INITIAL_BIKE_TELEMETRY = [
+  {
+    telemetry_id: 'telem_01',
+    video_id: 'ash_vid_adv_01',
+    bike_model: 'Adventure Sport Touring Rig',
+    top_speed_mph: 138.4,
+    avg_lean_angle_deg: 47.8,
+    exhaust_sound_db: 98.4,
+    g_force_peak: 1.25,
+    gps_elevation_gain_ft: 4280,
+    gps_route_name: 'Blue Ridge Parkway & Deals Gap Passes (NC)',
+    recorded_at: '2026-08-28 14:32:00'
+  },
+  {
+    telemetry_id: 'telem_02',
+    video_id: 'ash_vid_adv_02',
+    bike_model: 'Adventure Sport / Dual Setup',
+    top_speed_mph: 112.5,
+    avg_lean_angle_deg: 42.1,
+    exhaust_sound_db: 94.2,
+    g_force_peak: 1.05,
+    gps_elevation_gain_ft: 2150,
+    gps_route_name: 'Gainesville Trailhead to Forest Twisties',
+    recorded_at: '2026-08-15 11:15:00'
+  },
+  {
+    telemetry_id: 'telem_03',
+    video_id: 'ash_vid_01',
+    bike_model: 'Ducati Panigale V4 S',
+    top_speed_mph: 189.2,
+    avg_lean_angle_deg: 59.4,
+    exhaust_sound_db: 118.6,
+    g_force_peak: 1.62,
+    gps_elevation_gain_ft: 620,
+    gps_route_name: 'Buttonwillow Raceway Park Circuit',
+    recorded_at: '2026-08-10 16:45:00'
+  },
+  {
+    telemetry_id: 'telem_04',
+    video_id: 'ash_vid_02',
+    bike_model: 'Yamaha YZF-R1M & BMW S1000RR',
+    top_speed_mph: 186.0,
+    avg_lean_angle_deg: 56.2,
+    exhaust_sound_db: 114.2,
+    g_force_peak: 1.55,
+    gps_elevation_gain_ft: 3400,
+    gps_route_name: 'Angeles Crest Highway Canyon Pass',
+    recorded_at: '2026-07-28 09:20:00'
+  },
+  {
+    telemetry_id: 'telem_05',
+    video_id: 'ash_vid_10',
+    bike_model: 'Honda VFR800 Interceptor',
+    top_speed_mph: 152.0,
+    avg_lean_angle_deg: 49.0,
+    exhaust_sound_db: 102.0,
+    g_force_peak: 1.30,
+    gps_elevation_gain_ft: 850,
+    gps_route_name: 'Interstate 75 Northbound Highway Run',
+    recorded_at: '2026-06-14 17:05:00'
+  },
+  {
+    telemetry_id: 'telem_06',
+    video_id: 'ash_vid_16',
+    bike_model: 'Ducati Panigale V4 S',
+    top_speed_mph: 174.0,
+    avg_lean_angle_deg: 54.5,
+    exhaust_sound_db: 108.5,
+    g_force_peak: 1.48,
+    gps_elevation_gain_ft: 1890,
+    gps_route_name: 'Mulholland Highway Snake Pass',
+    recorded_at: '2026-05-18 13:40:00'
+  }
+];
+
+// Initial Sponsors Dataset
+export const INITIAL_SPONSORS = [
+  { sponsor_id: 'sp_01', brand_name: 'SC-Project Exhausts Italy', category: 'Exhaust Systems', royalty_cpm_boost: 1.85, is_active: true },
+  { sponsor_id: 'sp_02', brand_name: 'Sena Bluetooth Intercoms', category: 'Helmet Audio', royalty_cpm_boost: 1.40, is_active: true },
+  { sponsor_id: 'sp_03', brand_name: 'Alpinestars Tech-Air Airbag', category: 'Rider Safety', royalty_cpm_boost: 1.65, is_active: true },
+  { sponsor_id: 'sp_04', brand_name: 'Pirelli Diablo Supercorsa', category: 'Tires', royalty_cpm_boost: 1.25, is_active: true }
+];
+
 // In-memory relational tables cache for instant reads and fallback
 let inMemoryChannels = [...CHANNELS];
 let inMemoryVideos = [...VIDEOS];
 let inMemoryGrowth = [...MONTHLY_GROWTH_DATA];
 let inMemoryAlerts = [...INITIAL_TRENDING_ALERTS];
 let inMemoryUser = { ...INITIAL_USER_ACCOUNT };
+let inMemoryTelemetry = [...INITIAL_BIKE_TELEMETRY];
+let inMemorySponsors = [...INITIAL_SPONSORS];
+let inMemoryAuditLog: any[] = [];
 
 /**
  * Parses MySQL connection options from environment variables.
@@ -352,55 +465,312 @@ export async function executeSqlQuery(sql: string): Promise<DbmsQueryResult> {
   let indexesUsed = ['idx_videos_category (BTREE)', 'idx_videos_retention (BTREE)'];
   let plan = 'Index Range Scan using idx_composite_cat_retention on fact_video_metrics';
 
-  if (lower.includes('count') && lower.includes('group by') && lower.includes('category')) {
-    columns = ['category', 'total_videos', 'avg_retention_pct', 'avg_duration_sec', 'avg_watch_hours', 'view_density_factor'];
+  // --- A. Stored Procedure Calls (sp_...) ---
+  if (lower.includes('sp_getvideotelemetryreport')) {
+    columns = ['video_id', 'title', 'category', 'bike_model', 'views', 'retention_pct', 'top_speed_mph', 'avg_lean_angle_deg', 'exhaust_sound_db', 'gps_route_name', 'spike_chapters'];
     data = [
-      { category: 'shorts', total_videos: 5, avg_retention_pct: '96.56%', avg_duration_sec: '37.6s', avg_watch_hours: '21,060', view_density_factor: '54.21' },
-      { category: 'bike_review', total_videos: 6, avg_retention_pct: '66.85%', avg_duration_sec: '1256.6s', avg_watch_hours: '163,016', view_density_factor: '3.12' },
-      { category: 'vlog', total_videos: 5, avg_retention_pct: '65.50%', avg_duration_sec: '1288.0s', avg_watch_hours: '123,320', view_density_factor: '2.14' },
+      {
+        video_id: 'ash_vid_adv_01',
+        title: 'Motorcycle Adventure: Gainesville to Asheville NC',
+        category: 'vlog',
+        bike_model: 'Adventure Sport Touring Rig',
+        views: '742,000',
+        retention_pct: '73.5%',
+        top_speed_mph: '138.4 mph',
+        avg_lean_angle_deg: '47.8°',
+        exhaust_sound_db: '98.4 dB',
+        gps_route_name: 'Blue Ridge Parkway & Deals Gap Passes (NC)',
+        spike_chapters: 'Trail Alterations & Small Crash Save (950s - 90% retention)'
+      },
+      {
+        video_id: 'ash_vid_01',
+        title: '2024 Ducati Panigale V4 S Track Review',
+        category: 'bike_review',
+        bike_model: 'Ducati Panigale V4 S',
+        views: '894,200',
+        retention_pct: '68.4%',
+        top_speed_mph: '189.2 mph',
+        avg_lean_angle_deg: '59.4°',
+        exhaust_sound_db: '118.6 dB',
+        gps_route_name: 'Buttonwillow Raceway Park Circuit',
+        spike_chapters: 'Full Throttle 186+ MPH Straight (600s - 74% retention)'
+      }
     ];
-    indexesUsed = ['idx_videos_category (BITMAP INDEX)', 'idx_videos_retention (BTREE)'];
+    indexesUsed = ['PRIMARY KEY (fact_video_metrics)', 'fk_telemetry_video (fact_bike_telemetry)'];
+    plan = 'EXPLAIN CALL sp_GetVideoTelemetryReport() -> Routine Cache Hit (3 Result Sets compiled)';
+  }
+  else if (lower.includes('sp_calculatechannelgrowthkpis')) {
+    columns = ['channel_id', 'total_revenue_usd', 'effective_rpm_usd', 'total_channel_views', 'calculation_engine'];
+    data = [
+      {
+        channel_id: 'ashrides26_official',
+        total_revenue_usd: '$52,410.00',
+        effective_rpm_usd: '$4.85 / 1k views',
+        total_channel_views: '10,800,000',
+        calculation_engine: 'MySQL 8.0 Stored Procedure OUT Parameters'
+      }
+    ];
+    indexesUsed = ['idx_growth_year_month (fact_monthly_growth)'];
+    plan = 'EXPLAIN CALL sp_CalculateChannelGrowthKPIs() -> Aggregated OUT parameters computed';
+  }
+  else if (lower.includes('sp_simulatelivetrafficspike')) {
+    columns = ['video_id', 'previous_views', 'added_views', 'updated_views', 'status', 'alert_generated', 'transaction_mode'];
+    data = [
+      {
+        video_id: 'ash_vid_adv_01',
+        previous_views: '742,000',
+        added_views: '+12,500',
+        updated_views: '754,500',
+        status: 'TRANSACTION COMMITTED',
+        alert_generated: 'Critical Velocity Surge Alert (alert_tx_live_01)',
+        transaction_mode: 'InnoDB ACID (Atomicity + Consistency Preserved)'
+      }
+    ];
+    indexesUsed = ['PRIMARY (Row Exclusive X-Lock)', 'Redo Log Buffer'];
+    plan = 'EXPLAIN CALL sp_SimulateLiveTrafficSpike() -> Atomic Transaction: START TRANSACTION -> SAVEPOINT -> COMMIT';
+  }
+
+  // --- B. ACID Transactions (START TRANSACTION, COMMIT, ROLLBACK, SAVEPOINT) ---
+  else if (lower.includes('start transaction') || lower.includes('savepoint') || lower.includes('rollback to savepoint')) {
+    columns = ['step_no', 'sql_statement', 'execution_phase', 'lock_acquired', 'undo_redo_log_status'];
+    data = [
+      { step_no: 1, sql_statement: 'START TRANSACTION', execution_phase: 'ACID Boundary Started', lock_acquired: 'Transaction ID #9482 Assigned', undo_redo_log_status: 'Undo Page Allocated' },
+      { step_no: 2, sql_statement: 'UPDATE fact_video_metrics SET views = views + 25000...', execution_phase: 'Row Update', lock_acquired: 'Exclusive X-Lock on video_id "ash_vid_adv_01"', undo_redo_log_status: 'Before-Image Written to Undo Buffer' },
+      { step_no: 3, sql_statement: 'SAVEPOINT sp_views_updated', execution_phase: 'Checkpoint Established', lock_acquired: 'Savepoint Pointer #1 Active', undo_redo_log_status: 'Savepoint Checkpoint Marked' },
+      { step_no: 4, sql_statement: 'INSERT INTO dim_trending_alerts (...)', execution_phase: 'Anomaly Alert Staged', lock_acquired: 'Row Lock on alert_id', undo_redo_log_status: 'Insert Redo Entry Recorded' },
+      { step_no: 5, sql_statement: 'COMMIT', execution_phase: 'Transaction Durably Committed', lock_acquired: 'All Row Locks Released', undo_redo_log_status: 'Redo Log Flushed to Disk (Durability)' }
+    ];
+    indexesUsed = ['InnoDB WAL Redo Log', 'Buffer Pool Dirty Page Flush'];
+    plan = 'EXPLAIN ACID TRANSACTION: Multi-statement execution with intermediate SAVEPOINT rollback protection';
+  }
+
+  // --- C. Analytical Views (v_category_performance_summary, v_channel_benchmarks, v_viral_surge_telemetry, v_retention_high_risk_chapters) ---
+  else if (lower.includes('v_viral_surge_telemetry')) {
+    columns = ['video_id', 'title', 'category', 'bike_model', 'views', 'velocity_views_per_hr', 'top_speed_mph', 'avg_lean_angle_deg', 'exhaust_sound_db', 'gps_route_name'];
+    data = [
+      { video_id: 'ash_vid_10', title: 'When the V4 VTEC kicks in on highway', category: 'shorts', bike_model: 'Honda VFR800', views: '2,150,000', velocity_views_per_hr: '+5,400/hr', top_speed_mph: '152.0 mph', avg_lean_angle_deg: '49.0°', exhaust_sound_db: '102.0 dB', gps_route_name: 'Interstate 75 Northbound Highway Run' },
+      { video_id: 'ash_vid_16', title: 'Ducati Dry Clutch ASMR Sound Test', category: 'shorts', bike_model: 'Ducati Panigale V4 S', views: '1,680,000', velocity_views_per_hr: '+2,450/hr', top_speed_mph: '174.0 mph', avg_lean_angle_deg: '54.5°', exhaust_sound_db: '108.5 dB', gps_route_name: 'Mulholland Highway Snake Pass' },
+      { video_id: 'ash_vid_adv_01', title: 'Gainesville to Asheville NC Adventure', category: 'vlog', bike_model: 'Adventure Sport Rig', views: '742,000', velocity_views_per_hr: '+1,120/hr', top_speed_mph: '138.4 mph', avg_lean_angle_deg: '47.8°', exhaust_sound_db: '98.4 dB', gps_route_name: 'Blue Ridge Parkway & Deals Gap Passes (NC)' },
+      { video_id: 'ash_vid_02', title: 'Yamaha R1M vs BMW S1000RR Battle', category: 'bike_review', bike_model: 'Yamaha YZF-R1M', views: '1,240,500', velocity_views_per_hr: '+1,240/hr', top_speed_mph: '186.0 mph', avg_lean_angle_deg: '56.2°', exhaust_sound_db: '114.2 dB', gps_route_name: 'Angeles Crest Highway Canyon Pass' },
+      { video_id: 'ash_vid_01', title: 'Ducati Panigale V4 S Track Review', category: 'bike_review', bike_model: 'Ducati Panigale V4 S', views: '894,200', velocity_views_per_hr: '+820/hr', top_speed_mph: '189.2 mph', avg_lean_angle_deg: '59.4°', exhaust_sound_db: '118.6 dB', gps_route_name: 'Buttonwillow Raceway Park Circuit' }
+    ];
+    indexesUsed = ['idx_videos_velocity (BTREE)', 'fk_telemetry_video'];
+    plan = 'EXPLAIN SELECT * FROM v_viral_surge_telemetry -> View Merge Algorithm on fact_video_metrics + fact_bike_telemetry';
+  }
+  else if (lower.includes('v_retention_high_risk_chapters')) {
+    columns = ['video_id', 'title', 'category', 'second_mark', 'timestamp_formatted', 'pct_retention', 'chapter_name', 'editorial_note'];
+    data = [
+      { video_id: 'ash_vid_01', title: 'Ducati Panigale V4 S Track Review', category: 'bike_review', second_mark: 1020, timestamp_formatted: '17m 00s', pct_retention: '59.0%', chapter_name: 'Final Verdict & Lap Times', editorial_note: 'Pacing drop before outro - Shorten next time' },
+      { video_id: 'ash_vid_adv_02', title: 'Trail Alterations & Quick Repairs', category: 'vlog', second_mark: 1180, timestamp_formatted: '19m 40s', pct_retention: '58.0%', chapter_name: 'Back on the Twisties', editorial_note: 'End-screen cards appear too early' },
+      { video_id: 'ash_vid_15', title: 'Riding 600 Miles in Rain to MotoGP', category: 'vlog', second_mark: 1420, timestamp_formatted: '23m 40s', pct_retention: '60.2%', chapter_name: 'Arriving at Circuit in Rain', editorial_note: 'Camera lens fogged up - Audience dropoff detected' }
+    ];
+    indexesUsed = ['idx_retention_video_second (BTREE)', 'fk_retention_video'];
+    plan = 'EXPLAIN SELECT * FROM v_retention_high_risk_chapters -> Index Scan on fact_video_retention WHERE is_drop_point = TRUE';
+  }
+
+  // --- D. 3-Way Relational JOIN (Channel -> Video -> Retention) ---
+  else if (lower.includes('inner join fact_video_retention') || (lower.includes('dim_channels') && lower.includes('fact_video_metrics') && lower.includes('fact_video_retention'))) {
+    columns = ['channel_handle', 'video_id', 'video_title', 'category', 'second_mark', 'timestamp_formatted', 'pct_retention', 'chapter_name', 'editorial_note'];
+    data = [
+      { channel_handle: '@ashrides26', video_id: 'ash_vid_adv_01', video_title: 'Motorcycle Adventure: Gainesville to Asheville NC', category: 'vlog', second_mark: 950, timestamp_formatted: '15m 50s', pct_retention: '90.0%', chapter_name: 'Trail Alterations & Small Crash Save', editorial_note: 'Rewatched 1.3x - Extreme engagement spike' },
+      { channel_handle: '@ashrides26', video_id: 'ash_vid_adv_02', video_title: 'Trail Alterations & Quick Repairs on Trail', category: 'vlog', second_mark: 750, timestamp_formatted: '12m 30s', pct_retention: '87.0%', chapter_name: 'Adjusting Levers & Trail Fixes', editorial_note: 'Tool clanking audio & technique focus' },
+      { channel_handle: '@ashrides26', video_id: 'ash_vid_02', video_title: 'Yamaha R1M vs BMW S1000RR 2024 Battle', category: 'bike_review', second_mark: 120, timestamp_formatted: '2m 00s', pct_retention: '92.0%', chapter_name: 'Sound Battle: CP4 vs Inline 4', editorial_note: 'Massive replay retention point' },
+      { channel_handle: '@ashrides26', video_id: 'ash_vid_01', video_title: '2024 Ducati Panigale V4 S Track Review', category: 'bike_review', second_mark: 600, timestamp_formatted: '10m 00s', pct_retention: '74.0%', chapter_name: 'Full Throttle 186+ MPH Straight', editorial_note: 'SC-Project exhaust dB acoustic peak' },
+      { channel_handle: '@ashrides26', video_id: 'ash_vid_16', video_title: 'Ducati Dry Clutch ASMR Sound Test', category: 'shorts', second_mark: 22, timestamp_formatted: '0m 22s', pct_retention: '96.0%', chapter_name: 'Lever Released (Tambourine of Speed!)', editorial_note: 'Clutch rattle audio spike' }
+    ];
+    indexesUsed = ['idx_channels_handle (UNIQUE)', 'fk_videos_channel', 'fk_retention_video', 'idx_retention_spikes'];
+    plan = 'EXPLAIN 3-Way JOIN: dim_channels c -> fact_video_metrics v -> fact_video_retention r (Nested Loop with B-Tree Indexes)';
+  }
+
+  // --- E. Explicit NULL Handling (COALESCE, NULLIF) ---
+  else if (lower.includes('coalesce(') && (lower.includes('audio_sound_profile') || lower.includes('resolved_audio_profile') || lower.includes('view_density_factor'))) {
+    columns = ['video_id', 'title', 'category', 'resolved_audio_profile', 'resolved_demographic', 'views', 'duration_seconds', 'view_density_factor'];
+    data = [
+      { video_id: 'ash_vid_10', title: 'When the V4 VTEC kicks in on the highway 🚀', category: 'shorts', resolved_audio_profile: 'V4 Gear-Driven Cam Whine', resolved_demographic: 'Sportbike & Trackday Enthusiasts', views: '2,150,000', duration_seconds: 35, view_density_factor: '61.43' },
+      { video_id: 'ash_vid_16', title: 'Ducati Dry Clutch ASMR Sound Test 🎵', category: 'shorts', resolved_audio_profile: 'Open Billet Clutch Cover Acoustic', resolved_demographic: 'Ducatisti & Sound Aficionados', views: '1,680,000', duration_seconds: 40, view_density_factor: '42.00' },
+      { video_id: 'ash_vid_02', title: 'Yamaha R1M vs BMW S1000RR 2024 Battle', category: 'bike_review', resolved_audio_profile: 'Akrapovic Full Titanium + M-Package Sound', resolved_demographic: 'Liter-Bike Track Riders', views: '1,240,500', duration_seconds: 1320, view_density_factor: '0.94' },
+      { video_id: 'ash_vid_01', title: '2024 Ducati Panigale V4 S Track Review', category: 'bike_review', resolved_audio_profile: 'SC-Project CR-T Full Titanium Exhaust', resolved_demographic: 'Superbike & Trackday Riders 25-45', views: '894,200', duration_seconds: 1140, view_density_factor: '0.78' },
+      { video_id: 'ash_vid_adv_01', title: 'Gainesville to Asheville NC Adventure', category: 'vlog', resolved_audio_profile: 'Windslayer Helmet Audio + Sena 50S Intercom', resolved_demographic: 'Adventure & Dual-Sport Riders 20-50', views: '742,000', duration_seconds: 1620, view_density_factor: '0.46' },
+      { video_id: 'ash_vid_adv_02', title: 'Trail Alterations & Quick Repairs', category: 'vlog', resolved_audio_profile: 'Trailside Ambient + Tool Clanks', resolved_demographic: 'General Audience (Insufficient Telemetry)', views: '531,000', duration_seconds: 1180, view_density_factor: '0.45' }
+    ];
+    indexesUsed = ['idx_videos_views (BTREE)'];
+    plan = 'EXPLAIN SELECT COALESCE(audio_sound_profile, ...), NULLIF(duration_seconds, 0) -> Function evaluation per row (No NULL pointer faults)';
+  }
+
+  // --- F. Subqueries with EXISTS ---
+  else if (lower.includes('exists') && lower.includes('select 1')) {
+    columns = ['channel_id', 'name', 'handle', 'subscribers', 'primary_bike', 'exists_filter_result'];
+    data = inMemoryChannels
+      .filter((c) => inMemoryVideos.some((v) => v.channel_id === c.channel_id && v.is_trending))
+      .map((c) => ({
+        channel_id: c.channel_id,
+        name: c.name,
+        handle: c.handle,
+        subscribers: c.subscribers.toLocaleString(),
+        primary_bike: c.primary_bike,
+        exists_filter_result: 'MATCH (Has Active Viral Motovlogs)'
+      }));
+    indexesUsed = ['idx_videos_trending (COMPOSITE)', 'fk_videos_channel'];
+    plan = 'EXPLAIN SELECT ... WHERE EXISTS (...) -> Semi-join optimization with early index match termination';
+  }
+
+  // --- G. Bike Telemetry Fact Table Direct Scan ---
+  else if (lower.includes('fact_bike_telemetry') || (lower.includes('top_speed_mph') && lower.includes('avg_lean_angle_deg'))) {
+    columns = ['telemetry_id', 'video_id', 'bike_model', 'top_speed_mph', 'avg_lean_angle_deg', 'exhaust_sound_db', 'g_force_peak', 'gps_elevation_gain_ft', 'gps_route_name'];
+    data = inMemoryTelemetry.map((t) => ({
+      telemetry_id: t.telemetry_id,
+      video_id: t.video_id,
+      bike_model: t.bike_model,
+      top_speed_mph: `${t.top_speed_mph} mph`,
+      avg_lean_angle_deg: `${t.avg_lean_angle_deg}°`,
+      exhaust_sound_db: `${t.exhaust_sound_db} dB`,
+      g_force_peak: `${t.g_force_peak} G`,
+      gps_elevation_gain_ft: `+${t.gps_elevation_gain_ft.toLocaleString()} ft`,
+      gps_route_name: t.gps_route_name
+    }));
+    indexesUsed = ['PRIMARY (BTREE)', 'fk_telemetry_video'];
+    plan = 'Index Scan on fact_bike_telemetry (Hardware Sensor Telemetry)';
+  }
+
+  // 1. Velocity Surge Window Function / Outliers (CTE / Window Functions)
+  else if (lower.includes('over(') || lower.includes('cat_avg_velocity') || lower.includes('surge_multiplier') || lower.includes('velocitysurge')) {
+    columns = ['overall_velocity_rank', 'video_id', 'title', 'category', 'bike_model', 'velocity_views_per_hr', 'category_avg_velocity', 'surge_multiplier', 'category_percentile'];
+    data = [
+      { overall_velocity_rank: 1, video_id: 'ash_vid_10', title: 'When the V4 VTEC kicks in on the highway 🚀', category: 'shorts', bike_model: 'Honda VFR800 Interceptor', velocity_views_per_hr: '+5,400/hr', category_avg_velocity: '1,420/hr', surge_multiplier: '3.80x', category_percentile: '100%' },
+      { overall_velocity_rank: 2, video_id: 'ash_vid_16', title: 'Ducati Dry Clutch ASMR Sound Test 🎵', category: 'shorts', bike_model: 'Ducati Panigale V4 S', velocity_views_per_hr: '+2,450/hr', category_avg_velocity: '1,420/hr', surge_multiplier: '1.73x', category_percentile: '80%' },
+      { overall_velocity_rank: 3, video_id: 'ash_vid_02', title: 'Yamaha R1M vs BMW S1000RR 2024 - Brutal Canyon Battle', category: 'bike_review', bike_model: 'Yamaha YZF-R1M & BMW S1000RR', velocity_views_per_hr: '+1,240/hr', category_avg_velocity: '490/hr', surge_multiplier: '2.53x', category_percentile: '100%' },
+      { overall_velocity_rank: 4, video_id: 'ash_vid_adv_01', title: 'Motorcycle Adventure: Gainesville to Asheville NC', category: 'vlog', bike_model: 'Adventure Sport Touring Rig', velocity_views_per_hr: '+1,120/hr', category_avg_velocity: '442/hr', surge_multiplier: '2.53x', category_percentile: '100%' },
+      { overall_velocity_rank: 5, video_id: 'ash_vid_01', title: '2024 Ducati Panigale V4 S Track Review', category: 'bike_review', bike_model: 'Ducati Panigale V4 S', velocity_views_per_hr: '+820/hr', category_avg_velocity: '490/hr', surge_multiplier: '1.67x', category_percentile: '83%' },
+    ];
+    indexesUsed = ['idx_videos_velocity (BTREE)', 'idx_composite_cat_views (COMPOSITE)'];
+    plan = 'EXPLAIN CTE with Window Functions -> Window aggregate with PARTITION BY category (Temporary Table & Streaming Sort)';
+  } 
+  // 2. Retention Drop-off & Spikes Chapter Audit (Cross-table JOIN)
+  else if (lower.includes('fact_video_retention') || lower.includes('drop_point') || lower.includes('spike_point') || lower.includes('second_mark')) {
+    columns = ['video_id', 'title', 'category', 'second_mark', 'timestamp_formatted', 'pct_retention', 'chapter_name', 'is_drop_point', 'is_spike_point', 'editorial_note'];
+    data = [
+      { video_id: 'ash_vid_adv_01', title: 'Gainesville to Asheville NC Adventure', category: 'vlog', second_mark: 950, timestamp_formatted: '15m 50s', pct_retention: '90.0%', chapter_name: 'Trail Alterations & Small Crash Save', is_drop_point: 'NO', is_spike_point: 'YES', editorial_note: 'Rewatched 1.3x - Extreme engagement spike' },
+      { video_id: 'ash_vid_adv_02', title: 'Trail Alterations & Quick Repairs', category: 'vlog', second_mark: 750, timestamp_formatted: '12m 30s', pct_retention: '87.0%', chapter_name: 'Adjusting Levers & Trail Fixes', is_drop_point: 'NO', is_spike_point: 'YES', editorial_note: 'Tool clanking audio & technique focus' },
+      { video_id: 'ash_vid_01', title: 'Ducati Panigale V4 S Track Review', category: 'bike_review', second_mark: 600, timestamp_formatted: '10m 00s', pct_retention: '74.0%', chapter_name: 'Full Throttle 186+ MPH Straight', is_drop_point: 'NO', is_spike_point: 'YES', editorial_note: 'SC-Project exhaust dB acoustic peak' },
+      { video_id: 'ash_vid_01', title: 'Ducati Panigale V4 S Track Review', category: 'bike_review', second_mark: 1020, timestamp_formatted: '17m 00s', pct_retention: '59.0%', chapter_name: 'Final Verdict & Lap Times', is_drop_point: 'YES', is_spike_point: 'NO', editorial_note: 'Pacing drop before outro - Shorten next time' },
+      { video_id: 'ash_vid_02', title: 'Yamaha R1M vs BMW S1000RR Battle', category: 'bike_review', second_mark: 120, timestamp_formatted: '2m 00s', pct_retention: '92.0%', chapter_name: 'Sound Battle: CP4 vs Inline 4', is_drop_point: 'NO', is_spike_point: 'YES', editorial_note: 'Massive replay retention point' },
+      { video_id: 'ash_vid_16', title: 'Ducati Dry Clutch ASMR Sound Test', category: 'shorts', second_mark: 22, timestamp_formatted: '0m 22s', pct_retention: '96.0%', chapter_name: 'Lever Released (Tambourine of Speed!)', is_drop_point: 'NO', is_spike_point: 'YES', editorial_note: 'Clutch rattle audio spike' },
+    ];
+    indexesUsed = ['idx_retention_spikes (BTREE)', 'idx_retention_video_second (BTREE)', 'fk_retention_video'];
+    plan = 'EXPLAIN SELECT ... FROM fact_video_retention r JOIN fact_video_metrics v ON r.video_id = v.video_id -> Index scan on r (Cost=0.28) + EQ_REF on v (PRIMARY KEY)';
+  }
+  // 3. Bike Model Telemetry & ROI Comparison Matrix
+  else if (lower.includes('bike_model') && (lower.includes('group by') || lower.includes('aggregate_views') || lower.includes('avg_views_per_video'))) {
+    columns = ['bike_model', 'video_count', 'aggregate_views', 'avg_views_per_video', 'avg_retention_pct', 'avg_ctr_pct', 'total_watch_hours', 'total_revenue_usd', 'peak_velocity_views_per_hr'];
+    data = [
+      { bike_model: 'Ducati Panigale V4 S', video_count: 3, aggregate_views: '3,254,200', avg_views_per_video: '1,084,733', avg_retention_pct: '80.0%', avg_ctr_pct: '14.8%', total_watch_hours: '232,300', total_revenue_usd: '$14,617', peak_velocity_views_per_hr: '+2,450/hr' },
+      { bike_model: 'Adventure Sport Touring Rig', video_count: 2, aggregate_views: '1,273,000', avg_views_per_video: '636,500', avg_retention_pct: '71.7%', avg_ctr_pct: '12.9%', total_watch_hours: '321,000', total_revenue_usd: '$9,557', peak_velocity_views_per_hr: '+1,120/hr' },
+      { bike_model: 'Yamaha YZF-R1M & BMW S1000RR', video_count: 1, aggregate_views: '1,240,500', avg_views_per_video: '1,240,500', avg_retention_pct: '72.1%', avg_ctr_pct: '12.8%', total_watch_hours: '312,000', total_revenue_usd: '$10,048', peak_velocity_views_per_hr: '+1,240/hr' },
+      { bike_model: 'Honda VFR800 Interceptor', video_count: 1, aggregate_views: '2,150,000', avg_views_per_video: '2,150,000', avg_retention_pct: '97.2%', avg_ctr_pct: '17.8%', total_watch_hours: '25,600', total_revenue_usd: '$3,870', peak_velocity_views_per_hr: '+5,400/hr' },
+      { bike_model: 'Kawasaki Ninja ZX-10R', video_count: 2, aggregate_views: '1,020,000', avg_views_per_video: '510,000', avg_retention_pct: '64.1%', avg_ctr_pct: '9.8%', total_watch_hours: '243,000', total_revenue_usd: '$6,832', peak_velocity_views_per_hr: '+680/hr' },
+      { bike_model: 'Honda CBR1000RR-R Fireblade SP', video_count: 1, aggregate_views: '470,000', avg_views_per_video: '470,000', avg_retention_pct: '63.4%', avg_ctr_pct: '9.1%', total_watch_hours: '114,000', total_revenue_usd: '$3,337', peak_velocity_views_per_hr: '+190/hr' },
+    ];
+    indexesUsed = ['idx_videos_bike_model (BTREE)', 'idx_videos_views (BTREE)'];
+    plan = 'EXPLAIN SELECT bike_model, COUNT(*), SUM(views) ... GROUP BY bike_model -> Using temporary, Using filesort (InnoDB BTREE Aggregate)';
+  }
+  // 4. Adventure Tour Series (@ashrides26 Gainesville to Asheville NC)
+  else if (lower.includes('asheville') || lower.includes('gainesville') || lower.includes('adventure') && lower.includes('upload_date')) {
+    columns = ['video_id', 'title', 'upload_date', 'duration_min', 'views', 'likes', 'comments', 'retention_pct', 'watch_time_hours', 'ctr_pct', 'velocity_views_per_hr', 'audio_sound_profile'];
+    data = [
+      { video_id: 'ash_vid_adv_01', title: 'Motorcycle Adventure: Gainesville to Asheville NC - Mountain Twisties & Scenic Passes', upload_date: '2026-08-28', duration_min: '27.0 min', views: '742,000', likes: '68,400', comments: '4,920', retention_pct: '73.5%', watch_time_hours: '198,000', ctr_pct: '14.2%', velocity_views_per_hr: '+1,120/hr', audio_sound_profile: 'Windslayer Helmet Audio + Sena 50S Intercom' },
+      { video_id: 'ash_vid_adv_02', title: 'Trail Alterations & Quick Repairs on the Mountain Trail | Roadtrip Vlog', upload_date: '2026-08-15', duration_min: '19.6 min', views: '531,000', likes: '44,100', comments: '3,120', retention_pct: '69.8%', watch_time_hours: '123,000', ctr_pct: '11.5%', velocity_views_per_hr: '+680/hr', audio_sound_profile: 'Trailside Ambient + Tool Clanks' },
+      { video_id: 'ash_vid_15', title: 'Riding 600 Miles in Rain to MotoGP Circuit | Epic Roadtrip Vlog Part 1', upload_date: '2026-04-20', duration_min: '25.6 min', views: '380,000', likes: '32,400', comments: '2,190', retention_pct: '60.2%', watch_time_hours: '98,000', ctr_pct: '8.4%', velocity_views_per_hr: '+140/hr', audio_sound_profile: 'Raindrops on Visor + Low RPM Drone' }
+    ];
+    indexesUsed = ['idx_videos_category (BTREE)', 'idx_videos_upload_date (BTREE)'];
+    plan = 'EXPLAIN SELECT ... FROM fact_video_metrics WHERE channel_id = "ashrides26_official" AND category = "vlog" -> Range scan on idx_videos_upload_date';
+  }
+  // 5. CTR vs Retention Quadrant Classifier
+  else if (lower.includes('engagement_quadrant') || (lower.includes('ctr_pct') && lower.includes('case'))) {
+    columns = ['video_id', 'title', 'category', 'ctr_pct', 'retention_pct', 'views', 'engagement_quadrant', 'velocity_views_per_hr'];
+    data = [
+      { video_id: 'ash_vid_10', title: 'When the V4 VTEC kicks in on the highway 🚀', category: 'shorts', ctr_pct: '17.8%', retention_pct: '97.2%', views: '2,150,000', engagement_quadrant: 'Viral Powerhouse (High CTR, High Retention)', velocity_views_per_hr: '+5,400/hr' },
+      { video_id: 'ash_vid_16', title: 'Ducati Dry Clutch ASMR Sound Test 🎵', category: 'shorts', ctr_pct: '16.9%', retention_pct: '95.8%', views: '1,680,000', engagement_quadrant: 'Viral Powerhouse (High CTR, High Retention)', velocity_views_per_hr: '+2,450/hr' },
+      { video_id: 'ash_vid_adv_01', title: 'Motorcycle Adventure: Gainesville to Asheville NC', category: 'vlog', ctr_pct: '14.2%', retention_pct: '73.5%', views: '742,000', engagement_quadrant: 'Viral Powerhouse (High CTR, High Retention)', velocity_views_per_hr: '+1,120/hr' },
+      { video_id: 'ash_vid_02', title: 'Yamaha R1M vs BMW S1000RR 2024 Battle', category: 'bike_review', ctr_pct: '12.8%', retention_pct: '72.1%', views: '1,240,500', engagement_quadrant: 'Viral Powerhouse (High CTR, High Retention)', velocity_views_per_hr: '+1,240/hr' },
+      { video_id: 'ash_vid_01', title: '2024 Ducati Panigale V4 S Track Review', category: 'bike_review', ctr_pct: '11.2%', retention_pct: '68.4%', views: '894,200', engagement_quadrant: 'Drop Risk (High CTR, Low Retention - Fix Hook)', velocity_views_per_hr: '+820/hr' },
+      { video_id: 'ash_vid_adv_02', title: 'Trail Alterations & Quick Repairs on Trail', category: 'vlog', ctr_pct: '11.5%', retention_pct: '69.8%', views: '531,000', engagement_quadrant: 'Drop Risk (High CTR, Low Retention - Fix Hook)', velocity_views_per_hr: '+680/hr' },
+      { video_id: 'ash_vid_14', title: 'Honda CBR1000RR-R Fireblade SP Track Test', category: 'bike_review', ctr_pct: '9.1%', retention_pct: '63.4%', views: '470,000', engagement_quadrant: 'Underperforming (Low CTR, Low Retention)', velocity_views_per_hr: '+190/hr' },
+    ];
+    indexesUsed = ['idx_videos_retention (BTREE)', 'idx_videos_views (BTREE)'];
+    plan = 'EXPLAIN SELECT ... CASE WHEN ctr_pct >= 11 ... -> Scan on fact_video_metrics with computed CASE projection';
+  }
+  // 6. Category Performance Aggregation
+  else if (lower.includes('count') && lower.includes('group by') && lower.includes('category')) {
+    columns = ['category', 'total_videos', 'avg_retention_pct', 'avg_duration_sec', 'avg_watch_hours', 'total_views', 'total_revenue_usd', 'view_density_factor'];
+    data = [
+      { category: 'shorts', total_videos: 5, avg_retention_pct: '96.56%', avg_duration_sec: '37.6s', avg_watch_hours: '21,060', total_views: '7,330,000', total_revenue_usd: '$12,461', view_density_factor: '54.21' },
+      { category: 'bike_review', total_videos: 6, avg_retention_pct: '66.85%', avg_duration_sec: '1256.6s', avg_watch_hours: '163,016', total_views: '4,524,700', total_revenue_usd: '$33,884', view_density_factor: '3.12' },
+      { category: 'vlog', total_videos: 5, avg_retention_pct: '65.50%', avg_duration_sec: '1288.0s', avg_watch_hours: '123,320', total_views: '2,653,000', total_revenue_usd: '$18,529', view_density_factor: '2.14' },
+    ];
+    indexesUsed = ['idx_videos_category (BITMAP INDEX)', 'idx_composite_cat_retention (COMPOSITE)'];
     plan = 'EXPLAIN SELECT category, COUNT(*), AVG(retention_pct) FROM fact_video_metrics GROUP BY category -> Using temporary, Using filesort (InnoDB Optimizer)';
-  } else if (lower.includes('dim_channels') || lower.includes('channels') || lower.includes('competitor')) {
-    columns = ['channel_name', 'handle', 'subscribers', 'total_views', 'total_videos', 'primary_bike', 'sub_growth_monthly_pct'];
+  } 
+  // 7. Channels & Competitors Benchmark
+  else if (lower.includes('dim_channels') || lower.includes('channels') || lower.includes('competitor') || lower.includes('views_per_subscriber_ratio')) {
+    columns = ['channel_id', 'channel_name', 'handle', 'subscribers', 'total_views', 'total_videos', 'avg_views_per_video', 'sub_growth_monthly_pct', 'primary_bike', 'views_per_subscriber_ratio'];
     data = inMemoryChannels.map((c) => ({
+      channel_id: c.channel_id,
       channel_name: c.name,
       handle: c.handle,
       subscribers: c.subscribers.toLocaleString(),
       total_views: c.total_views.toLocaleString(),
       total_videos: c.total_videos,
-      primary_bike: c.primary_bike,
+      avg_views_per_video: (c.avg_views_per_video || 330543).toLocaleString(),
       sub_growth_monthly_pct: `+${c.sub_growth_monthly_pct}%`,
+      primary_bike: c.primary_bike,
+      views_per_subscriber_ratio: (c.total_views / Math.max(1, c.subscribers)).toFixed(1) + 'x',
     }));
     indexesUsed = ['idx_channels_subs (BTREE)', 'PRIMARY (HASH KEY)'];
     plan = 'EXPLAIN SELECT * FROM dim_channels ORDER BY subscribers DESC -> Index Scan using idx_channels_subs';
-  } else if (lower.includes('fact_monthly_growth') || lower.includes('growth')) {
-    columns = ['month', 'year', 'views', 'subscribers_gained', 'watch_time_hours', 'revenue_est'];
-    data = inMemoryGrowth.map((g) => ({
-      month: g.month,
-      year: g.year,
-      views: g.views.toLocaleString(),
-      subscribers_gained: `+${g.subscribers_gained.toLocaleString()}`,
-      watch_time_hours: g.watch_time_hours.toLocaleString(),
-      revenue_est: `$${g.revenue_est.toLocaleString()}`,
-    }));
-    indexesUsed = ['idx_growth_year_month (BTREE)'];
+  } 
+  // 8. Monthly Growth Time-Series
+  else if (lower.includes('fact_monthly_growth') || lower.includes('growth') || lower.includes('effective_rpm')) {
+    columns = ['year_num', 'month_name', 'views', 'subscribers_gained', 'watch_time_hours', 'revenue_est', 'effective_rpm_usd', 'bike_review_views', 'vlog_views', 'shorts_views', 'shorts_view_share_pct'];
+    data = inMemoryGrowth.map((g) => {
+      const rpm = (g.revenue_est / (g.views / 1000)).toFixed(2);
+      const share = ((g.shorts_views / g.views) * 100).toFixed(1);
+      return {
+        year_num: g.year,
+        month_name: g.month,
+        views: g.views.toLocaleString(),
+        subscribers_gained: `+${g.subscribers_gained.toLocaleString()}`,
+        watch_time_hours: g.watch_time_hours.toLocaleString(),
+        revenue_est: `$${g.revenue_est.toLocaleString()}`,
+        effective_rpm_usd: `$${rpm}`,
+        bike_review_views: g.bike_review_views.toLocaleString(),
+        vlog_views: g.vlog_views.toLocaleString(),
+        shorts_views: g.shorts_views.toLocaleString(),
+        shorts_view_share_pct: `${share}%`
+      };
+    });
+    indexesUsed = ['idx_growth_year_month (BTREE)', 'uq_channel_month_year (UNIQUE)'];
     plan = 'Index Range Scan on fact_monthly_growth using idx_growth_year_month';
-  } else if (lower.includes('trending') || lower.includes('alert')) {
-    columns = ['alert_id', 'alert_type', 'channel_name', 'video_title', 'metric_value', 'priority', 'timestamp'];
+  } 
+  // 9. Alerts
+  else if (lower.includes('trending') || lower.includes('alert') || lower.includes('dim_trending_alerts')) {
+    columns = ['alert_id', 'alert_type', 'priority', 'channel_name', 'video_title', 'multiplier', 'metric_value', 'message', 'alert_timestamp'];
     data = inMemoryAlerts.map((a) => ({
       alert_id: a.id,
       alert_type: a.alert_type,
+      priority: a.priority.toUpperCase(),
       channel_name: a.channel_name,
       video_title: a.video_title || 'N/A',
+      multiplier: a.multiplier ? `${a.multiplier}x` : 'N/A',
       metric_value: a.metric_value,
-      priority: a.priority.toUpperCase(),
-      timestamp: a.timestamp,
+      message: a.message,
+      alert_timestamp: a.timestamp,
     }));
     indexesUsed = ['idx_alerts_read_priority (BTREE)'];
     plan = 'Index Scan using idx_alerts_read_priority on dim_trending_alerts';
-  } else {
-    columns = ['video_id', 'title', 'category', 'bike_model', 'views', 'retention_pct', 'velocity_views_per_hr'];
+  } 
+  // 10. Default Video Metrics Scan
+  else {
+    columns = ['video_id', 'title', 'category', 'bike_model', 'views', 'retention_pct', 'velocity_views_per_hr', 'estimated_revenue_usd'];
     data = inMemoryVideos.slice(0, 10).map((v) => ({
       video_id: v.video_id,
       title: v.title.length > 40 ? v.title.substring(0, 38) + '...' : v.title,
@@ -409,6 +779,7 @@ export async function executeSqlQuery(sql: string): Promise<DbmsQueryResult> {
       views: v.views.toLocaleString(),
       retention_pct: `${v.retention_pct}%`,
       velocity_views_per_hr: `+${v.velocity_views_per_hr}/hr`,
+      estimated_revenue_usd: `$${v.estimated_revenue_usd.toLocaleString()}`
     }));
     indexesUsed = ['idx_videos_views (BTREE)', 'PRIMARY (HASH KEY)'];
     plan = 'Index Scan using idx_videos_views on fact_video_metrics (Cost=0.45 Rows=148)';
@@ -428,6 +799,25 @@ export async function executeSqlQuery(sql: string): Promise<DbmsQueryResult> {
     schema_plan: plan,
   };
 }
+
+/**
+ * Returns catalog of all backend queries.
+ */
+export function getBackendQueriesList(): BackendQueryDefinition[] {
+  return BACKEND_QUERIES;
+}
+
+/**
+ * Executes a named backend query by ID.
+ */
+export async function runBackendQueryById(id: string): Promise<DbmsQueryResult> {
+  const queryDef = getBackendQueryById(id);
+  if (!queryDef) {
+    throw new Error(`Query with id "${id}" not found`);
+  }
+  return executeSqlQuery(queryDef.sql);
+}
+
 
 /**
  * Filter and sort videos from MySQL or cached dataset.
@@ -585,3 +975,333 @@ export async function updateUserAccount(updated: any) {
 export function getSchema() {
   return DBMS_SCHEMA;
 }
+
+// =====================================================================
+// ADBMS 4-PHASE EXPORTED HELPERS & CONTROLLERS
+// =====================================================================
+
+export function getAdbmsPhaseSummary() {
+  return {
+    phase1: {
+      name: 'Phase 1: Data Modelling',
+      status: 'COMPLETE',
+      entitiesCount: ADBMS_ENTITIES.length,
+      relationshipsCount: ADBMS_RELATIONSHIPS.length,
+      normalizationLevels: ['UNF', '1NF', '2NF', '3NF'],
+      description: '3NF Normalized Motovlogging Schema with primary keys, foreign keys, and ER model.'
+    },
+    phase2: {
+      name: 'Phase 2: Database Creation',
+      status: 'COMPLETE',
+      tablesCount: 12,
+      constraintsActive: ['PRIMARY KEY', 'FOREIGN KEY (CASCADE)', 'UNIQUE', 'NOT NULL', 'CHECK (0-100%)', 'CHECK (>0)'],
+      nullHandling: 'COALESCE(), NULLIF(), explicit nullable vs NOT NULL semantics',
+      aggregatesCount: 6,
+      description: 'MySQL 8.0 DDL with InnoDB storage engines, explicit NULL handling, and aggregate queries.'
+    },
+    phase3: {
+      name: 'Phase 3: Data Querying',
+      status: 'COMPLETE',
+      joinsImplemented: ['INNER JOIN', 'LEFT OUTER JOIN', '3-Way JOIN', 'CROSS JOIN'],
+      subqueriesImplemented: ['Scalar Subqueries', 'Correlated Subqueries', 'EXISTS / NOT EXISTS', 'Derived Tables'],
+      viewsCount: 4,
+      storedProceduresCount: ADBMS_PROCEDURES.length,
+      analyticalQueriesCount: 3,
+      description: 'Relational JOINs, correlated subqueries, analytical views, stored procedures, and window functions.'
+    },
+    phase4: {
+      name: 'Phase 4: Data Integrity',
+      status: 'COMPLETE',
+      acidSupport: ['Atomicity (All-or-Nothing)', 'Consistency (CHECK & FK Constraints)', 'Isolation (Row Locks / FOR UPDATE)', 'Durability (WAL Redo Log)'],
+      transactionOps: ['START TRANSACTION', 'COMMIT', 'ROLLBACK', 'SAVEPOINT', 'ROLLBACK TO SAVEPOINT'],
+      concurrencyIsolationLevels: ['READ UNCOMMITTED', 'READ COMMITTED', 'REPEATABLE READ (Default)', 'SERIALIZABLE'],
+      validationEngine: 'Server-side and database-level constraint and boundary validators active.'
+    }
+  };
+}
+
+export function getAdbmsEntitiesData(): AdbmsEntity[] {
+  return ADBMS_ENTITIES;
+}
+
+export function getAdbmsRelationshipsData(): AdbmsRelationship[] {
+  return ADBMS_RELATIONSHIPS;
+}
+
+export function getAdbmsNormalizationData(): AdbmsNormalizationStep[] {
+  return ADBMS_NORMALIZATION_STEPS;
+}
+
+export function getAdbmsQueriesList(): AdbmsQueryItem[] {
+  return ADBMS_QUERIES;
+}
+
+export function getAdbmsProceduresList(): AdbmsProcedureDef[] {
+  return ADBMS_PROCEDURES;
+}
+
+export function getBikeTelemetryList() {
+  return inMemoryTelemetry;
+}
+
+/**
+ * Simulates a full interactive ACID transaction scenario with COMMIT, ROLLBACK, or SAVEPOINT.
+ */
+export async function simulateAdbmsTransaction(
+  scenario: 'commit' | 'rollback_to_savepoint' | 'full_rollback' = 'commit',
+  videoId: string = 'ash_vid_adv_01',
+  addedViews: number = 25000
+) {
+  totalQueries++;
+  const targetVideo = inMemoryVideos.find((v) => v.video_id === videoId) || inMemoryVideos[0];
+  const previousViews = targetVideo.views;
+  const previousVelocity = targetVideo.velocity_views_per_hr;
+
+  const steps: Array<{
+    step: number;
+    action: string;
+    sql: string;
+    status: 'ACTIVE' | 'SUCCESS' | 'ROLLED_BACK' | 'COMMITTED';
+    details: string;
+  }> = [];
+
+  // Step 1: START TRANSACTION
+  steps.push({
+    step: 1,
+    action: 'START TRANSACTION',
+    sql: 'START TRANSACTION;',
+    status: 'ACTIVE',
+    details: 'Transaction boundary initialized. Acquired exclusive row lock on fact_video_metrics.'
+  });
+
+  // Step 2: Update views
+  const stagedViews = previousViews + addedViews;
+  steps.push({
+    step: 2,
+    action: 'UPDATE fact_video_metrics',
+    sql: `UPDATE fact_video_metrics SET views = views + ${addedViews}, velocity_views_per_hr = velocity_views_per_hr + 400 WHERE video_id = '${targetVideo.video_id}';`,
+    status: 'SUCCESS',
+    details: `Staged view count update from ${previousViews.toLocaleString()} to ${stagedViews.toLocaleString()}. Written to Undo Log.`
+  });
+
+  // Step 3: SAVEPOINT
+  steps.push({
+    step: 3,
+    action: 'SAVEPOINT sp_views_updated',
+    sql: 'SAVEPOINT sp_views_updated;',
+    status: 'SUCCESS',
+    details: 'Intermediate savepoint checkpoint "sp_views_updated" successfully marked in transaction undo log.'
+  });
+
+  // Step 4: Staged secondary action (Insert alert)
+  const alertId = `alert_tx_${Date.now()}`;
+  steps.push({
+    step: 4,
+    action: 'INSERT INTO dim_trending_alerts',
+    sql: `INSERT INTO dim_trending_alerts (alert_id, video_id, priority) VALUES ('${alertId}', '${targetVideo.video_id}', 'critical');`,
+    status: scenario === 'full_rollback' ? 'ROLLED_BACK' : scenario === 'rollback_to_savepoint' ? 'ROLLED_BACK' : 'SUCCESS',
+    details: scenario === 'full_rollback' || scenario === 'rollback_to_savepoint'
+      ? 'Integrity violation simulated: Duplicate foreign key collision simulated.'
+      : 'Alert staged successfully into transaction write buffer.'
+  });
+
+  // Step 5: Termination based on scenario
+  if (scenario === 'rollback_to_savepoint') {
+    steps.push({
+      step: 5,
+      action: 'ROLLBACK TO SAVEPOINT sp_views_updated',
+      sql: 'ROLLBACK TO SAVEPOINT sp_views_updated;',
+      status: 'ROLLED_BACK',
+      details: 'Reverted Step 4 alert insertion back to savepoint checkpoint. Step 2 views update preserved!'
+    });
+    steps.push({
+      step: 6,
+      action: 'COMMIT',
+      sql: 'COMMIT;',
+      status: 'COMMITTED',
+      details: 'Transaction committed durably. Views update permanently saved to InnoDB Redo Log.'
+    });
+
+    targetVideo.views = stagedViews;
+    targetVideo.velocity_views_per_hr = previousVelocity + 400;
+
+    return {
+      scenario,
+      outcome: 'PARTIAL_ROLLBACK_AND_COMMIT',
+      message: 'Successfully rolled back failed alert insert to SAVEPOINT, then durably committed views update.',
+      steps,
+      dataSnapshot: {
+        video_id: targetVideo.video_id,
+        title: targetVideo.title,
+        previous_views: previousViews,
+        final_views: targetVideo.views,
+        transaction_status: 'COMMITTED_AFTER_SAVEPOINT_ROLLBACK'
+      }
+    };
+  }
+
+  if (scenario === 'full_rollback') {
+    steps.push({
+      step: 5,
+      action: 'ROLLBACK',
+      sql: 'ROLLBACK;',
+      status: 'ROLLED_BACK',
+      details: 'Entire transaction rolled back. All uncommitted buffer changes discarded. Video views remain unchanged.'
+    });
+
+    return {
+      scenario,
+      outcome: 'FULL_ROLLBACK',
+      message: 'Fatal integrity error encountered. All staged updates rolled back atomically (Atomicity guarantee).',
+      steps,
+      dataSnapshot: {
+        video_id: targetVideo.video_id,
+        title: targetVideo.title,
+        previous_views: previousViews,
+        final_views: previousViews,
+        transaction_status: 'ROLLED_BACK'
+      }
+    };
+  }
+
+  // Normal success COMMIT
+  steps.push({
+    step: 5,
+    action: 'COMMIT',
+    sql: 'COMMIT;',
+    status: 'COMMITTED',
+    details: 'Transaction durably committed to disk. WAL buffer flushed, row locks released.'
+  });
+
+  targetVideo.views = stagedViews;
+  targetVideo.velocity_views_per_hr = previousVelocity + 400;
+
+  return {
+    scenario,
+    outcome: 'FULL_COMMIT',
+    message: 'All operations validated and committed durably across fact and dimension tables.',
+    steps,
+    dataSnapshot: {
+      video_id: targetVideo.video_id,
+      title: targetVideo.title,
+      previous_views: previousViews,
+      final_views: targetVideo.views,
+      transaction_status: 'COMMITTED'
+    }
+  };
+}
+
+/**
+ * Executes a Stored Procedure call and returns structured output
+ */
+export async function callAdbmsProcedure(procName: string, params: Record<string, any>) {
+  totalQueries++;
+  const name = procName.toLowerCase();
+
+  if (name.includes('getvideotelemetryreport')) {
+    const videoId = params.p_video_id || 'ash_vid_adv_01';
+    const video = inMemoryVideos.find((v) => v.video_id === videoId) || inMemoryVideos[0];
+    const telemetry = inMemoryTelemetry.find((t) => t.video_id === video.video_id) || inMemoryTelemetry[0];
+    const retention = (video.retention_curve || []).filter((r) => r.is_spike_point || r.is_drop_point);
+
+    return {
+      procedure: 'sp_GetVideoTelemetryReport',
+      videoSnapshot: {
+        video_id: video.video_id,
+        title: video.title,
+        category: video.category,
+        bike_model: video.bike_model,
+        views: video.views,
+        retention_pct: `${video.retention_pct}%`,
+        ctr_pct: `${video.ctr_pct}%`,
+        estimated_revenue_usd: `$${video.estimated_revenue_usd}`
+      },
+      hardwareTelemetry: telemetry,
+      inflectionPoints: retention,
+      executionStatus: 'PROCEDURE_EXECUTED_SUCCESSFULLY'
+    };
+  }
+
+  if (name.includes('calculatechannelgrowthkpis')) {
+    const channelId = params.p_channel_id || 'ashrides26_official';
+    const totalRev = inMemoryGrowth.reduce((acc, g) => acc + g.revenue_est, 0);
+    const totalV = inMemoryGrowth.reduce((acc, g) => acc + g.views, 0);
+    const avgRpm = (totalRev / (totalV / 1000)).toFixed(2);
+
+    return {
+      procedure: 'sp_CalculateChannelGrowthKPIs',
+      channel_id: channelId,
+      out_parameters: {
+        p_total_revenue: `$${totalRev.toLocaleString()}`,
+        p_avg_rpm: `$${avgRpm} / 1k views`,
+        p_total_views: totalV.toLocaleString()
+      },
+      executionStatus: 'OUT_PARAMETERS_BOUND_SUCCESSFULLY'
+    };
+  }
+
+  if (name.includes('simulatelivetrafficspike')) {
+    const videoId = params.p_video_id || 'ash_vid_adv_01';
+    const addedViews = Number(params.p_additional_views) || 15000;
+    return simulateAdbmsTransaction('commit', videoId, addedViews);
+  }
+
+  throw new Error(`Unknown stored procedure "${procName}"`);
+}
+
+/**
+ * Validates a candidate record against database integrity rules
+ */
+export function validateAdbmsRecord(table: string, record: Record<string, any>) {
+  const errors: string[] = [];
+  const warnings: string[] = [];
+
+  if (table === 'fact_video_metrics') {
+    if (!record.video_id || typeof record.video_id !== 'string') {
+      errors.push('PRIMARY KEY Violation: video_id is required and must be a string.');
+    }
+    if (!record.title || record.title.trim().length === 0) {
+      errors.push('NOT NULL Violation: title cannot be empty.');
+    }
+    if (record.duration_seconds !== undefined && Number(record.duration_seconds) <= 0) {
+      errors.push('CHECK Constraint chk_video_duration: duration_seconds must be > 0.');
+    }
+    if (record.retention_pct !== undefined) {
+      const val = Number(record.retention_pct);
+      if (val < 0 || val > 100) {
+        errors.push('CHECK Constraint chk_video_retention: retention_pct must be between 0.00 and 100.00.');
+      }
+    }
+    if (record.ctr_pct !== undefined) {
+      const val = Number(record.ctr_pct);
+      if (val < 0 || val > 100) {
+        errors.push('CHECK Constraint chk_video_ctr: ctr_pct must be between 0.00 and 100.00.');
+      }
+    }
+    if (record.channel_id && !inMemoryChannels.some((c) => c.channel_id === record.channel_id)) {
+      errors.push(`FOREIGN KEY Constraint fk_videos_channel: channel_id "${record.channel_id}" does not exist in dim_channels.`);
+    }
+    if (record.audio_sound_profile === null) {
+      warnings.push('Nullable Attribute: audio_sound_profile is NULL (Default helmet mic assumed).');
+    }
+  } else if (table === 'fact_bike_telemetry') {
+    if (record.top_speed_mph !== undefined && Number(record.top_speed_mph) <= 0) {
+      errors.push('CHECK Constraint chk_top_speed: top_speed_mph must be > 0.');
+    }
+    if (record.avg_lean_angle_deg !== undefined) {
+      const angle = Number(record.avg_lean_angle_deg);
+      if (angle < 0 || angle > 65) {
+        errors.push('CHECK Constraint chk_lean_angle: avg_lean_angle_deg must be between 0.0 and 65.0 degrees.');
+      }
+    }
+  }
+
+  return {
+    valid: errors.length === 0,
+    table,
+    errors,
+    warnings,
+    validatedAt: new Date().toISOString()
+  };
+}
+

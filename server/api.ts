@@ -14,6 +14,18 @@ import {
   createAlert,
   getUserAccount,
   updateUserAccount,
+  getBackendQueriesList,
+  runBackendQueryById,
+  getAdbmsPhaseSummary,
+  getAdbmsEntitiesData,
+  getAdbmsRelationshipsData,
+  getAdbmsNormalizationData,
+  getAdbmsQueriesList,
+  getAdbmsProceduresList,
+  getBikeTelemetryList,
+  simulateAdbmsTransaction,
+  callAdbmsProcedure,
+  validateAdbmsRecord,
 } from './db/mysql.js';
 
 export const apiRouter = Router();
@@ -66,6 +78,207 @@ apiRouter.post('/db/query', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
+// =====================================================================
+// Backend Queries API Catalog & Runners
+// =====================================================================
+
+// Get Catalog of Pre-compiled Backend Queries
+apiRouter.get('/queries', (req, res) => {
+  const queries = getBackendQueriesList();
+  res.json({
+    total: queries.length,
+    database: 'ashrides26_db',
+    queries,
+  });
+});
+
+// Run a Backend Query by ID or custom SQL
+apiRouter.post('/queries/run', async (req, res) => {
+  const { queryId, sql } = req.body;
+
+  try {
+    if (queryId) {
+      const result = await runBackendQueryById(queryId);
+      return res.json(result);
+    }
+
+    if (sql) {
+      const result = await executeSqlQuery(sql);
+      return res.json(result);
+    }
+
+    res.status(400).json({ error: 'Either queryId or sql is required' });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Specific Analytical Backend Query Endpoints
+apiRouter.get('/queries/category-performance', async (req, res) => {
+  try {
+    const result = await runBackendQueryById('category_performance');
+    res.json(result);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+apiRouter.get('/queries/velocity-surges', async (req, res) => {
+  try {
+    const result = await runBackendQueryById('velocity_surge_ranking');
+    res.json(result);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+apiRouter.get('/queries/retention-audit', async (req, res) => {
+  try {
+    const result = await runBackendQueryById('retention_drop_and_spike_audit');
+    res.json(result);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+apiRouter.get('/queries/bike-benchmarks', async (req, res) => {
+  try {
+    const result = await runBackendQueryById('bike_model_comparison');
+    res.json(result);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+apiRouter.get('/queries/growth-timeseries', async (req, res) => {
+  try {
+    const result = await runBackendQueryById('monthly_growth_timeseries');
+    res.json(result);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+apiRouter.get('/queries/channel-benchmarks', async (req, res) => {
+  try {
+    const result = await runBackendQueryById('channel_benchmarks');
+    res.json(result);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+apiRouter.get('/queries/adventure-tour', async (req, res) => {
+  try {
+    const result = await runBackendQueryById('adventure_tour_deepdive');
+    res.json(result);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+apiRouter.get('/queries/quadrant-analysis', async (req, res) => {
+  try {
+    const result = await runBackendQueryById('ctr_retention_quadrant');
+    res.json(result);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// =====================================================================
+// ADBMS 4-PHASE API ENDPOINTS
+// =====================================================================
+
+// Phase 1-4 Overview Status
+apiRouter.get('/adbms/summary', (req, res) => {
+  res.json(getAdbmsPhaseSummary());
+});
+
+// Phase 1: Entities & Attributes
+apiRouter.get('/adbms/entities', (req, res) => {
+  res.json({
+    database: 'ashrides26_db',
+    total_entities: getAdbmsEntitiesData().length,
+    entities: getAdbmsEntitiesData()
+  });
+});
+
+// Phase 1: ER Relationships & Cardinalities
+apiRouter.get('/adbms/relationships', (req, res) => {
+  res.json({
+    database: 'ashrides26_db',
+    total_relationships: getAdbmsRelationshipsData().length,
+    relationships: getAdbmsRelationshipsData()
+  });
+});
+
+// Phase 1: Normalization (UNF -> 1NF -> 2NF -> 3NF)
+apiRouter.get('/adbms/normalization', (req, res) => {
+  res.json({
+    database: 'ashrides26_db',
+    normalization: getAdbmsNormalizationData()
+  });
+});
+
+// Phase 2 & 3: Queries Suite
+apiRouter.get('/adbms/queries', (req, res) => {
+  res.json({
+    database: 'ashrides26_db',
+    queries: getAdbmsQueriesList()
+  });
+});
+
+// Phase 3: Stored Procedures Catalog
+apiRouter.get('/adbms/procedures', (req, res) => {
+  res.json({
+    database: 'ashrides26_db',
+    procedures: getAdbmsProceduresList()
+  });
+});
+
+// Phase 3: Execute Stored Procedure
+apiRouter.post('/adbms/procedures/call', async (req, res) => {
+  const { procedure, procedureName, parameters } = req.body;
+  const targetProcedure = procedure || procedureName;
+  if (!targetProcedure) {
+    return res.status(400).json({ error: 'Procedure name is required' });
+  }
+  try {
+    const result = await callAdbmsProcedure(targetProcedure, parameters || {});
+    res.json(result);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Phase 4: Simulate ACID Transaction (COMMIT, ROLLBACK, SAVEPOINT)
+apiRouter.post('/adbms/transaction/simulate', async (req, res) => {
+  const { scenario, videoId, addedViews } = req.body;
+  try {
+    const result = await simulateAdbmsTransaction(scenario || 'commit', videoId, addedViews);
+    res.json(result);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Phase 4: Data Validation Engine
+apiRouter.post('/adbms/validate', (req, res) => {
+  const { table, record } = req.body;
+  if (!table || !record) {
+    return res.status(400).json({ error: 'table and record are required for validation' });
+  }
+  const result = validateAdbmsRecord(table, record);
+  res.json(result);
+});
+
+// Phase 2 & 3: Hardware Bike Telemetry
+apiRouter.get('/adbms/telemetry', (req, res) => {
+  res.json(getBikeTelemetryList());
+});
+
 
 // Get Videos with filtering and sorting
 apiRouter.get('/videos', async (req, res) => {
